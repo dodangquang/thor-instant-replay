@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.ThorInstantReplay" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/nvidia_green</item>
+        <item name="colorPrimaryVariant">@color/nvidia_green_dark</item>
+        <item name="colorOnPrimary">@color/nvidia_black</item>
+        <item name="colorSecondary">@color/nvidia_green_glow</item>
+        <item name="android:statusBarColor">@color/nvidia_black</item>
+        <item name="android:navigationBarColor">@color/nvidia_black</item>
+        <item name="android:windowBackground">@color/nvidia_dark_bg</item>
+    </style>
+</resources>

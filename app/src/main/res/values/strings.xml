@@ -1,0 +1,38 @@
+<resources>
+    <string name="app_name">Thor ShadowPlay</string>
+    <string name="title_instant_replay">GEFORCE SHADOWPLAY</string>
+    <string name="title_edition">AYN THOR DUAL-SCREEN EDITION</string>
+    <string name="subtitle">Qualcomm VPU Hardware Encoder • Rolling RAM Buffer • Zero FPS Loss</string>
+    <string name="status_stopped">● SHADOWPLAY: ĐANG TẮT</string>
+    <string name="status_running">● SHADOWPLAY: ĐANG GHI ĐỆM RAM (ACTIVE)</string>
+    <string name="btn_start">BẬT SHADOWPLAY</string>
+    <string name="btn_stop">TẮT SHADOWPLAY</string>
+    <string name="btn_save_clip">LƯU CLIP REPLAY</string>
+    <string name="setting_duration">Độ dài bản lưu tức thì (Buffer RAM):</string>
+    <string name="setting_dual_screen">Quay 2 màn hình (Ghép Top &amp; Bottom 3DS)</string>
+    <string name="setting_floating_button">Nút nổi HUD [CLIP] trên màn hình cảm ứng phụ</string>
+    <string name="setting_home_hold">Giữ nút HOME 3 giây để lưu Clip (Tương thích Wayfinder)</string>
+    <string name="setting_record_mic">Thu âm giọng nói Micro (Bình luận game)</string>
+    <string name="setting_noise_filter">Bộ lọc ồn thông minh (Noise Suppressor &amp; Low-Cut)</string>
+    <string name="setting_pause_screen_off">Tạm dừng khi tắt màn hình (Doze Mode)</string>
+    <string name="setting_boot">Tự khởi động cùng AYN Thor (Auto-Boot)</string>
+    <string name="adb_status_ok">✓ PROJECT_MEDIA: ĐÃ KÍCH HOẠT VĨNH VIỄN</string>
+    <string name="adb_status_need">⚠ Cần kích hoạt quyền PROJECT_MEDIA qua ADB</string>
+    <string name="adb_cmd_title">Lệnh ADB kích hoạt vĩnh viễn:</string>
+    <string name="adb_cmd_text">adb shell appops set com.thor.instantreplay PROJECT_MEDIA allow</string>
+    <string name="recent_clips">DANH SÁCH BẢN LƯU GẦN ĐÂY (MOVIES/THORCLIPS):</string>
+    <string name="setting_instant_combo">Lưu tức thì bằng L3 + R3 (Combo 0s trễ)</string>
+    <string name="setting_resolution">Độ phân giải &amp; Chất lượng video:</string>
+    <string name="setting_quota">Tự động dọn dẹp khi đầy bộ nhớ:</string>
+    <string name="btn_wifi_share">📲 CHIA SẺ WI-FI (QR)</string>
+    <string name="dialog_wifi_share_title">Wi-Fi Quick Share</string>
+    <string name="dialog_wifi_share_desc">Quét mã QR bằng Camera điện thoại hoặc PC cùng mạng Wi-Fi để xem và tải clip:</string>
+    <string name="dialog_btn_stop_share">DỪNG CHIA SẺ</string>
+    <string name="btn_manual_record_start">🔴 QUAY THỦ CÔNG</string>
+    <string name="btn_manual_record_stop">⏹ DỪNG QUAY</string>
+    <string name="setting_sound_chime">Phát tiếng \"Ting\" khi lưu xong clip</string>
+    <string name="setting_audio_mixer_title">BỘ TRỘN ÂM THANH (AUDIO MIXER)</string>
+    <string name="setting_game_volume">Âm lượng Game:</string>
+    <string name="setting_mic_volume">Âm lượng Micro (Voice Boost):</string>
+</resources>
+
