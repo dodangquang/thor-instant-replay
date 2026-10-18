@@ -12,7 +12,17 @@ final class LicenseConfig {
         JSONObject data=new JSONObject(new String(bytes.toByteArray(),java.nio.charset.StandardCharsets.UTF_8));
         api=data.optString("apiBase","");keyId=data.optString("keyId","");spki=data.optString("publicKeySpki","");shop=data.optString("shopUrl","https://ko-fi.com/thorqol/shop");enforce=data.optBoolean("enforce",false);
         if(!api.isEmpty()){URI u=new URI(api);if(!"https".equals(u.getScheme())||u.getHost()==null||u.getRawUserInfo()!=null||u.getPort()!=-1||u.getRawQuery()!=null||u.getRawFragment()!=null||!"".equals(u.getRawPath()))throw new SecurityException("Invalid license origin");}
-        if(!shop.equals("https://ko-fi.com/thorqol/shop")&&!shop.matches("https://ko-fi\\.com/s/[a-zA-Z0-9]+"))throw new SecurityException("Invalid shop URL");
+        if(!allowedShop(shop))throw new SecurityException("Invalid shop URL");
+    }
+    static boolean allowedShop(String value){
+        if(value==null)return false;
+        try{
+            URI u=new URI(value);
+            if(!"https".equals(u.getScheme())||u.getHost()==null||u.getRawUserInfo()!=null||u.getPort()!=-1||u.getRawQuery()!=null||u.getRawFragment()!=null)return false;
+            String path=u.getRawPath();
+            if("payhip.com".equals(u.getHost()))return path!=null&&path.matches("/b/[a-zA-Z0-9_-]{4,100}");
+            return "ko-fi.com".equals(u.getHost())&&("/thorqol/shop".equals(path)||(path!=null&&path.matches("/s/[a-zA-Z0-9]{1,100}")));
+        }catch(java.net.URISyntaxException invalid){return false;}
     }
     boolean ready(){return !api.isEmpty()&&!keyId.isEmpty()&&!spki.isEmpty();}
 }
