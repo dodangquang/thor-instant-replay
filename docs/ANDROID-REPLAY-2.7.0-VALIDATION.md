@@ -1,6 +1,6 @@
 # Android Replay 2.7.0 preview — device validation
 
-Baseline UI / recording build validated on AYN Thor `c2b670a0`, Android 13, 18 October 2026. The subsequent local cleanup build is described separately below; the parent task owns installation of that build.
+Baseline UI / recording build validated on AYN Thor `c2b670a0`, Android 13, 18 October 2026. The subsequent cleanup build and the parent-reported Android boundary result are described separately below.
 
 - Package remains `com.thor.instantreplay`; versionCode 9, versionName 2.7.0. Installed over versionCode 8 / 2.6-NVIDIA with `adb install -r` after verifying the same signing certificate.
 - Certificate SHA-256: `06c96a505c22eeec42ec8a62f2b822f527667fbdc9ad62f95f2f0590e93b099b`.
@@ -26,7 +26,7 @@ The original encoder captures the main screen only. The previously advertised du
 
 No repository visibility was changed, no commits were pushed, and Kho Phim was not modified.
 
-## Latest local cleanup build
+## Latest cleanup build
 
 - Release APK: 13,245,646 bytes; SHA-256 `34f94168cd44293316d194750e53a98005304529672f6f7573799081913745ec`. Package / version remain `com.thor.instantreplay` / 2.7.0 / code 9; the signing certificate remains identical to the baseline.
 - All seven shared Java files match the latest ThorQOL source by SHA-256. This includes the corrected Vietnamese device-count description, preservation of the chosen device name when replacing a device, and controller focus after touch input without requiring two taps.
@@ -34,7 +34,8 @@ No repository visibility was changed, no commits were pushed, and Kho Phim was n
 - Generated links encode the complete filename, so Unicode, spaces, `+`, `&` and normal literal `%` names round-trip through the existing query decoder. Filename display and quoted response-header filenames are escaped.
 - Standalone file-policy tests: **22 passed**. The Windows host denied symbolic-link creation, so that one case was explicitly skipped rather than counted as passed.
 - HTTP integration harness: **26 passed** against the actual Gradle-compiled `ThorWebServer`, with Android environment / logging adapters pointing to an owned temporary directory. Both routes preserved valid clip bytes and returned 404 for parent, absolute, encoded-slash / backslash, double / triple encoded and control-character paths. Original temporary source files remained unchanged.
-- `:app:assembleRelease` including vital lint and `:app:assembleDebugAndroidTest`: passed. No device input or installation was performed for this cleanup build because the parent task was using Thor.
+- `:app:assembleRelease` including vital lint and `:app:assembleDebugAndroidTest`: passed. The child agent performed no device input or installation for this cleanup build because the parent task owned Thor.
+- The parent task subsequently reported installing this final cleanup APK on Thor and running the Android `clipBoundary` mode: **23 checks passed; `symlinkTested=true`**. This closes the symlink-test gap left by the Windows host. This result is recorded from the parent task's report; the child did not repeat ADB operations.
 
 The updated QA APK supports the same policy suite on Android, including an actual symbolic-link escape where the filesystem permits it:
 
@@ -44,4 +45,4 @@ adb install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.
 adb shell am instrument -w -e mode clipBoundary com.thor.instantreplay.test/com.thor.instantreplay.ReplayUiInstrumentation
 ```
 
-The mode creates and removes only its own temporary cache files; it does not read or modify `Movies/ThorClips`. A successful Android symlink run reports **23 checks; symlinkTested=true**. The existing UI / locale / controller mode remains available without the `mode` argument.
+The mode creates and removes only its own temporary cache files; it does not read or modify `Movies/ThorClips`. The parent-reported Android run returned **23 checks; symlinkTested=true**. The existing UI / locale / controller mode remains available without the `mode` argument.
