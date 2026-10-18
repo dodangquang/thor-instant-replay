@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "apiBase": "https://thorqol-license.netlify.app",
+  "keyId": "thorqol-2026-01",
+  "publicKeySpki": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAjDzZsdwEAMd3E/j5OWnH/D4xriJxjHKpkzZPaAU4r6W02jqBUISKewYIwBVA7xT4tzGm4qMLkFtJF0w5YunVBtacMdK2UJxI7pw+jeeuru06B0qWz4Vip7IhwORXxzcRfLQtDUz9LTBDQijpb3g0i2QOV6y7u65rEXpXVjhk8Vf+ZM+pKGjYozKdudG1bf58jBJEH/S+NLo4+k3ELWFoijgkDivmFflmLnshay45RWPJD0DsRt44fNNF/2huz7EsIRVLlEA8/RJHjcGN1sEFC3Kc9YWYnxrrKbxKTFpEtUS4O08Jd/EQPodiHAYruhUitMo0ZL9pDRBbDEJ3RETaTHSBc0/tg5mNV9lvBRNfaKvgP0d2a1aedfCmF/It2Ecpjwy7nMYH945nnDluB2MshjjKrAk2ehw7fhoPYcA2nJp5bDpCJLuZ3deX3/eN4/tq0LS1i/pxaDDo956IEHkRVC/uTXYZqYO6uWqejv2CUheFEC+rItAzIyProhiiIalbAgMBAAE=",
+  "shopUrl": "https://payhip.com/b/jSaMc"
+}

@@ -1,4 +1,4 @@
-# Android Replay 2.8.0
+# Android Replay 2.9.0
 
 Android Replay lưu khoảnh khắc vừa chơi và quay video trên Android. Đây là tên hiển thị mới của Thor Instant Replay; package `com.thor.instantreplay`, dữ liệu và các action tích hợp cũ được giữ nguyên.
 
@@ -19,7 +19,7 @@ Android Replay lưu khoảnh khắc vừa chơi và quay video trên Android. Đ
 
 Video được ghi từ màn hình chính. Ghép hai màn hình chưa được triển khai trong nguồn hiện tại, vì vậy bản này không hiển thị lựa chọn ghép màn hình. Android yêu cầu quyền ghi hình / ghi âm; một số ứng dụng có thể chặn thu âm thanh nội bộ. Hiệu năng thực tế phụ thuộc thiết bị và game.
 
-## Giao diện 2.8
+## Giao diện 2.9
 
 Panel vát góc, nền cyan, viền magenta và focus vàng chanh đồng bộ phong cách với Việt Hóa PC. Logo, trạng thái ghi đệm và các nút ghi/lưu nằm bên trái; bốn tab có icon và nhóm cài đặt riêng. Focus nằm trong nút để không bị cắt khi dùng controller. Chuyển tab và focus có animation ngắn; đèn ghi đệm chỉ nhấp nháy khi màn hình app đang hoạt động và hệ thống cho phép animation.
 
@@ -91,8 +91,24 @@ LAN sharing accepts only direct MP4 files inside the canonical clip directory. G
 
 `AppLanguage.get(context)` / `set(context,"vi"|"en")` / `wrap(context)` are available to Java and Kotlin. The language is kept in `android_replay_ui.language`, and setting it also synchronizes `thorqol_ui.language` for the combo account screen. Existing capture preferences remain in `thor_replay_prefs`.
 
-Mục Tài khoản đã tích hợp giao diện dùng chung cho combo. Cấu hình hiện tại là preview: chưa kết nối máy chủ / xác nhận thanh toán và chưa bật khóa trả phí. Không có đường đăng nhập giả hoặc tự xác nhận đã mua. The original source did not include an online APK updater; the update channel still needs a separate implementation before distribution through in-app updates.
+Mục Tài khoản dùng máy chủ ThorQOL và xác minh quyền mua thật. Bản chính bật kiểm tra giấy phép; repo chỉ chứa cấu hình API và khóa công khai, không chứa khóa ký riêng. App chưa có feed cập nhật APK tự động; tải bản mới từ sản phẩm tương ứng trên Payhip và cài đè cùng package/chữ ký.
 
 ## License
 
 [Apache License 2.0](LICENSE). The original package, service action names, preference file and `Movies/ThorClips` directory are retained for upgrade compatibility.
+
+## 2.9.0: bản chính và Trial
+
+Bản chính giữ package `com.thor.instantreplay`, code12. Đăng nhập bằng email đơn Payhip rồi kích hoạt máy. Combo25USD dùng vĩnh viễn, tối đa2máy cho cả3app. Cần Internet để kích hoạt/xác thực định kỳ; vé offline tối đa7ngày, không phải thời hạn quyền mua.
+
+Trial có package `com.thor.instantreplay.trial`, version `2.9.0-trial`, cài song song và giữ thiết lập riêng. Chọn Bắt đầu/kiểm tra dùng thử khi có mạng. Thời hạn24giờ liên tục tính từ lần kích hoạt đầu trên máy chủ, kể cả lúc tắt app/máy. Sau reboot cần kiểm tra online lại; không có mạng không kéo dài hạn. Dịch vụ kiểm tra mỗi5giây kể cả khi tạm dừng, dừng capture/HUD khi hết hạn và hoàn tất video quay tay đang mở; không xóa clip do hết trial.
+
+Trial dùng mã băm Android ID theo khóa ký/user/thiết bị. Gỡ/cài lại bình thường với cùng định danh không đặt lại24giờ. Factory reset/đổi hồ sơ Android có thể đổi ID; đây không phải chứng thực phần cứng hoặc chống giả mạo client. Trial không sử dụng tài khoản mua hàng hay hạn mức game của2app khác.
+
+Bộ lệnh ADB trong hướng dẫn app tự dùng package đang cài. Với Trial, component Accessibility là `com.thor.instantreplay.trial/com.thor.instantreplay.service.ThorKeyTriggerService`; không dùng bộ lệnh package bản chính cho Trial. Các lệnh bản chính và thư mục clip cũ giữ nguyên.
+
+Build Trial: `./gradlew -PthorqolTrial=true :app:assembleRelease :app:assembleDebugAndroidTest`. Property tự đổi applicationId/nhãn/version suffix, bật BuildConfig.THORQOL_TRIAL và overlay trial assets. Hai build ghi cùng đường dẫn app-release.apk, nên lưu ra tên riêng trước khi build bản kia.
+
+Full bundle: https://payhip.com/b/jSaMc — free trial: https://payhip.com/b/vd6WE
+
+English: Full access requires the purchased bundle and device activation. The separate Trial lasts24 continuous hours from first server activation. Reinstalling with the same Android identity does not reset time. Offline use never extends expiry; reboot needs online verification. Expiry stops capture and flushes an active manual recording without deleting saved clips because the trial ended. APK updates currently come from the corresponding Payhip product.

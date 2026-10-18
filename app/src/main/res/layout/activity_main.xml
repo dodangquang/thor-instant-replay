@@ -9,6 +9,7 @@
             <com.google.android.material.button.MaterialButton android:id="@+id/btnAccount" style="@style/Replay.Button" android:layout_width="116dp" android:layout_height="42dp" android:text="@string/account" app:icon="@drawable/ic_replay_account" android:layout_marginEnd="5dp" />
             <com.google.android.material.button.MaterialButton android:id="@+id/btnLanguage" style="@style/Replay.Button" android:layout_width="88dp" android:layout_height="42dp" android:text="VI / EN" app:icon="@drawable/ic_replay_language" />
         </LinearLayout>
+        <TextView android:id="@+id/tvTrialStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:visibility="gone" android:textSize="12sp" android:textStyle="bold" android:textColor="@color/nvidia_black" android:maxLines="2" />
         <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:layout_marginTop="10dp" android:layout_marginBottom="8dp">
             <com.thor.instantreplay.ReplayPanelLayout android:id="@+id/heroPanel" android:layout_width="242dp" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/replay_panel" android:padding="12dp" android:tag="poster">
                 <TextView style="@style/Replay.Eyebrow" android:text="@string/replay_eyebrow" />

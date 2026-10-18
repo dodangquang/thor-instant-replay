@@ -47,6 +47,12 @@ class ReplaySetupDialog(private val host: Activity) : AppCompatDialog(host) {
             "# REPLACES the service list. Append other enabled services with : before running.\n" +
             "adb shell settings put secure enabled_accessibility_services com.thor.instantreplay/.service.ThorKeyTriggerService:com.thorwayfinder.app/.ForegroundAppService\n" +
             "adb shell settings put secure accessibility_enabled 1"
+        @JvmStatic fun adbCommands(packageName: String): String {
+            if (packageName == "com.thor.instantreplay") return ADB_COMMANDS
+            require(packageName == "com.thor.instantreplay.trial")
+            return ADB_COMMANDS.replace("com.thor.instantreplay", packageName)
+                .replace("$packageName/.service.ThorKeyTriggerService", "$packageName/com.thor.instantreplay.service.ThorKeyTriggerService")
+        }
         fun projectionAllowed(context: Context): Boolean = try {
             val ops = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
             val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -59,6 +65,7 @@ class ReplaySetupDialog(private val host: Activity) : AppCompatDialog(host) {
         } catch (_: RuntimeException) { false }
     }
 
+    private val commands = adbCommands(host.packageName)
     private val handler = Handler(Looper.getMainLooper())
     private val scroll: ScrollView
     private val commandsScroll: ScrollView
@@ -82,14 +89,14 @@ class ReplaySetupDialog(private val host: Activity) : AppCompatDialog(host) {
         activeScroll = scroll
         close = findViewById<MaterialButton>(R.id.btnSetupClose)!!
         close.setIconResource(R.drawable.ic_replay_back)
-        findViewById<TextView>(R.id.setupCommand)!!.text = ADB_COMMANDS
+        findViewById<TextView>(R.id.setupCommand)!!.text = commands
         findViewById<MaterialButton>(R.id.btnSetupCopy)!!.setIconResource(R.drawable.ic_replay_copy)
         findViewById<MaterialButton>(R.id.btnSetupAccessibility)!!.setIconResource(R.drawable.ic_replay_controller)
         findViewById<MaterialButton>(R.id.btnSetupOverlay)!!.setIconResource(R.drawable.ic_replay_setup)
         close.setOnClickListener { dismiss() }
         findViewById<MaterialButton>(R.id.btnSetupCopy)!!.setOnClickListener {
             (host.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                .setPrimaryClip(ClipData.newPlainText("Android Replay ADB", ADB_COMMANDS))
+                .setPrimaryClip(ClipData.newPlainText("Android Replay ADB", commands))
             Toast.makeText(host, R.string.setup_copied, Toast.LENGTH_SHORT).show()
         }
         findViewById<MaterialButton>(R.id.btnSetupAccessibility)!!.setOnClickListener {

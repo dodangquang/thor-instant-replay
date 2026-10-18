@@ -2,16 +2,20 @@ plugins {
     id("com.android.application")
 }
 
+val thorqolTrial = providers.gradleProperty("thorqolTrial").map { it.toBoolean() }.getOrElse(false)
+
 android {
     namespace = "com.thor.instantreplay"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.thor.instantreplay"
+        applicationId = "com.thor.instantreplay" + if (thorqolTrial) ".trial" else ""
+        manifestPlaceholders["appLabel"] = "Android Replay" + if (thorqolTrial) " Trial" else ""
+        buildConfigField("boolean", "THORQOL_TRIAL", thorqolTrial.toString())
         minSdk = 29
         targetSdk = 34
-        versionCode = 11
-        versionName = "2.8.0"
+        versionCode = 12
+        versionName = "2.9.0" + if (thorqolTrial) "-trial" else ""
         testInstrumentationRunner = "com.thor.instantreplay.ReplayUiInstrumentation"
     }
 
@@ -30,6 +34,10 @@ android {
         }
     }
 
+    if (thorqolTrial) {
+        sourceSets.getByName("debug").assets.srcDir("src/trial/assets")
+        sourceSets.getByName("release").assets.srcDir("src/trial/assets")
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -38,6 +46,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
     sourceSets.getByName("androidTest").java.srcDir(rootProject.file("tests/standalone"))
 }

@@ -25,6 +25,8 @@ import androidx.core.app.NotificationCompat
 import com.thor.instantreplay.MainActivity
 import com.thor.instantreplay.AppLanguage
 import com.thorqol.shared.LicenseAccess
+import com.thorqol.shared.TrialAccess
+import com.thor.instantreplay.overlay.FloatingTriggerService
 import com.thor.instantreplay.buffer.CircularMediaBuffer
 import com.thor.instantreplay.encoder.AudioEncoder
 import com.thor.instantreplay.encoder.DualScreenHelper
@@ -78,6 +80,30 @@ class ReplayService : Service() {
     private val isSaving = AtomicBoolean(false)
     private var lastSaveTimeMs = 0L
     private var isPaused = false
+    @Volatile private var preserveClipsOnStop = false
+    private val trialExpiryCheck = object : Runnable {
+        override fun run() {
+            if (!TrialAccess.enabled(this@ReplayService)) return
+            if (!LicenseAccess.canUse(this@ReplayService)) { stopForAccessExpiry(); return }
+            mainHandler.postDelayed(this, 5000L)
+        }
+    }
+
+    /** Expiry flushes an active recording without pruning any saved clip. */
+    private fun stopForAccessExpiry() {
+        preserveClipsOnStop = true
+        if (isManualRecording) stopManualRecording()
+        stopService(Intent(this, FloatingTriggerService::class.java))
+        mainHandler.removeCallbacks(trialExpiryCheck)
+        stopSelf()
+    }
+
+    private fun captureAllowed(): Boolean {
+        if (LicenseAccess.canUse(this)) return true
+        preserveClipsOnStop = true
+        mainHandler.post { stopForAccessExpiry() }
+        return false
+    }
 
     private val circularBuffer = CircularMediaBuffer()
     private var screenEncoder: ScreenEncoder? = null
@@ -87,7 +113,7 @@ class ReplayService : Service() {
     private val actionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != ACTION_STOP && !LicenseAccess.canUse(this@ReplayService)) {
-                stopSelf()
+                stopForAccessExpiry()
                 return
             }
             when (intent?.action) {
@@ -130,7 +156,7 @@ class ReplayService : Service() {
     }
 
     private fun resumeShadowPlay() {
-        if (!isRunning) return
+        if (!isRunning || !captureAllowed()) return
         isPaused = false
         screenEncoder?.resume()
         audioEncoder?.resume()
@@ -162,12 +188,13 @@ class ReplayService : Service() {
             addAction(Intent.ACTION_USER_PRESENT)
         }
         registerReceiver(screenStateReceiver, screenFilter)
+        if (TrialAccess.enabled(this)) mainHandler.postDelayed(trialExpiryCheck, 5000L)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action ?: ACTION_START
         if (action != ACTION_STOP && !LicenseAccess.canUse(this)) {
-            stopSelf()
+            stopForAccessExpiry()
             return START_NOT_STICKY
         }
 
@@ -302,6 +329,7 @@ class ReplayService : Service() {
     }
 
     fun startManualRecording() {
+        if (!captureAllowed()) return
         if (!isRunning) {
             Toast.makeText(this, t("Bật Replay trước khi quay video.", "Start Replay before recording video."), Toast.LENGTH_SHORT).show()
             return
@@ -333,7 +361,7 @@ class ReplayService : Service() {
         manualRecordStartTimeMs = 0L
 
         if (ok) {
-            enforceStorageQuota(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "ThorClips"))
+            if (!preserveClipsOnStop) enforceStorageQuota(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "ThorClips"))
             vibrateFeedback()
             playChimeIfEnabled()
             Toast.makeText(this, t("Đã dừng và lưu video", "Recording stopped and video saved"), Toast.LENGTH_SHORT).show()
@@ -352,6 +380,7 @@ class ReplayService : Service() {
     }
 
     fun saveCurrentReplay() {
+        if (!captureAllowed()) return
         val now = System.currentTimeMillis()
         if (now - lastSaveTimeMs < 3000L) {
             Log.w(TAG, "Save ignored: cooldown active (${now - lastSaveTimeMs}ms < 3000ms)")
@@ -365,6 +394,7 @@ class ReplayService : Service() {
 
         executor.execute {
             try {
+                if (!captureAllowed()) return@execute
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                 val clipsDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "ThorClips")
                 clipsDir.mkdirs()
@@ -372,7 +402,7 @@ class ReplayService : Service() {
 
                 val success = circularBuffer.exportToMp4(outputFile)
                 if (success) {
-                    enforceStorageQuota(clipsDir)
+                    if (!preserveClipsOnStop) enforceStorageQuota(clipsDir)
                     mainHandler.post {
                         vibrateFeedback()
                         playChimeIfEnabled()
@@ -466,13 +496,21 @@ class ReplayService : Service() {
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacksAndMessages(null)
+        if (TrialAccess.enabled(this) && !LicenseAccess.canUse(this)) preserveClipsOnStop = true
         if (isManualRecording) {
             stopManualRecording()
         }
         isRunning = false
         screenEncoder?.stop()
         audioEncoder?.stop()
+        if (preserveClipsOnStop) {
+            val projection = mediaProjection ?: activeProjection
+            runCatching { projection?.stop() }
+            if (activeProjection === projection) activeProjection = null
+        }
         circularBuffer.clear()
+        executor.shutdown()
         try {
             unregisterReceiver(actionReceiver)
         } catch (_: Exception) {}

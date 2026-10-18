@@ -30,6 +30,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.slider.Slider
 import com.google.android.material.chip.Chip
 import com.thorqol.shared.LicenseAccess
+import com.thorqol.shared.TrialAccess
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -286,6 +287,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startReplayService() {
+        if (!LicenseAccess.guard(this)) return
         if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 1003)
             Toast.makeText(this, t("Cho phép ghi âm để thu âm thanh game.", "Allow audio recording to capture game sound."), Toast.LENGTH_SHORT).show()
@@ -347,6 +349,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateServiceUIState() {
+        if (TrialAccess.enabled(this)) {
+            binding.tvTrialStatus.visibility = View.VISIBLE
+            binding.tvTrialStatus.text = TrialAccess.statusText(this)
+            binding.btnAccount.text = t("Dùng thử", "Trial")
+        }
         if (ReplayService.isRunning) {
             val isManual = ReplayService.isManualRecording
             binding.btnManualRecord.isEnabled = true
@@ -628,6 +635,7 @@ class MainActivity : AppCompatActivity() {
         val tabs = listOf(binding.tabCapture, binding.tabAudio, binding.tabClips, binding.tabControls)
         tabs.forEachIndexed { index, button -> button.setOnClickListener { selectTab(index) } }
         binding.btnAccount.setOnClickListener { LicenseAccess.open(this) }
+        binding.tvTrialStatus.setOnClickListener { LicenseAccess.open(this) }
         binding.btnSetup.setOnClickListener { showSetupGuide() }
         binding.btnLanguage.setOnClickListener {
             val current = if (AppLanguage.get(this) == "en") 1 else 0

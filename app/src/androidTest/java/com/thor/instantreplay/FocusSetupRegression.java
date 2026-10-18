@@ -73,6 +73,11 @@ final class FocusSetupRegression {
             check(content.toString().contains(lang.equals("en")?"REPLACES the entire list":"THAY TOÀN BỘ danh sách"),lang+" explains replacement of the accessibility list");
             TextView command=guide.findViewById(id("setupCommand"));
             String[] expected={"adb devices","adb shell pm grant com.thor.instantreplay android.permission.RECORD_AUDIO","adb shell pm grant com.thor.instantreplay android.permission.POST_NOTIFICATIONS","adb shell appops set com.thor.instantreplay PROJECT_MEDIA allow","adb shell appops set com.thor.instantreplay SYSTEM_ALERT_WINDOW allow","adb shell dumpsys deviceidle whitelist +com.thor.instantreplay","adb shell settings put secure enabled_accessibility_services com.thor.instantreplay/.service.ThorKeyTriggerService:com.thorwayfinder.app/.ForegroundAppService","adb shell settings put secure accessibility_enabled 1"};
+            if(ctx.getPackageName().endsWith(".trial")) for(int i=0;i<expected.length;i++) expected[i]=expected[i].replace("com.thor.instantreplay","com.thor.instantreplay.trial").replace("com.thor.instantreplay.trial/.service.ThorKeyTriggerService","com.thor.instantreplay.trial/com.thor.instantreplay.service.ThorKeyTriggerService");
+            check(ReplaySetupDialog.adbCommands("com.thor.instantreplay").equals(ReplaySetupDialog.ADB_COMMANDS),"main setup command pack is unchanged");
+            String trialCommands=ReplaySetupDialog.adbCommands("com.thor.instantreplay.trial");
+            check(trialCommands.contains("pm grant com.thor.instantreplay.trial android.permission.RECORD_AUDIO"),"trial setup targets the trial package");
+            check(trialCommands.contains("com.thor.instantreplay.trial/com.thor.instantreplay.service.ThorKeyTriggerService"),"trial accessibility component uses the original class namespace");
             ArrayList<String> actual=new ArrayList<>();for(String line:command.getText().toString().split("\n"))if(line.startsWith("adb "))actual.add(line);
             check(java.util.Arrays.asList(expected).equals(actual),lang+" displays all eight exact adb lines with Replay and Wayfinder components");
             guide.findViewById(id("btnSetupCopy")).performClick();

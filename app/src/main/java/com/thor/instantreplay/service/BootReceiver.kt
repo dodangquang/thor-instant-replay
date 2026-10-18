@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import com.thorqol.shared.LicenseAccess
 import com.thor.instantreplay.TransparentPermissionActivity
 
 class BootReceiver : BroadcastReceiver() {
@@ -15,7 +16,7 @@ class BootReceiver : BroadcastReceiver() {
             val prefs = context.getSharedPreferences("thor_replay_prefs", Context.MODE_PRIVATE)
             val autoBoot = prefs.getBoolean("auto_boot", true)
 
-            if (autoBoot) {
+            if (autoBoot && LicenseAccess.canUse(context)) {
                 // Launch transparent activity to obtain MediaProjection token silently (via PROJECT_MEDIA allow)
                 val launchIntent = Intent(context, TransparentPermissionActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
