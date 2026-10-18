@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="14dp" android:background="@drawable/replay_panel">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/setup_title" android:textColor="@color/nvidia_green"
+        android:textSize="20sp" android:textStyle="bold|italic" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/setup_intro" android:textColor="@color/text_secondary" android:textSize="12sp" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:orientation="horizontal" android:layout_marginTop="8dp">
+        <ScrollView android:id="@+id/setupScroll" android:layout_width="0dp" android:layout_height="match_parent"
+            android:layout_weight="1" android:layout_marginEnd="10dp" android:padding="10dp"
+            android:fillViewport="true" android:focusable="true" android:focusableInTouchMode="true"
+            android:nextFocusRight="@id/setupCommandsScroll" android:nextFocusDown="@id/btnSetupClose"
+            android:background="@drawable/replay_control_focus">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView style="@style/Replay.Section" android:text="@string/setup_pc_title" />
+                <TextView style="@style/Replay.Hint" android:text="@string/setup_pc_body" />
+                <TextView style="@style/Replay.Hint" android:text="@string/setup_adb_body" />
+                <TextView style="@style/Replay.Hint" android:text="@string/setup_powershell" />
+                <TextView style="@style/Replay.Section" android:text="@string/setup_audio_title" />
+                <TextView style="@style/Replay.Hint" android:text="@string/setup_audio_body" />
+                <TextView style="@style/Replay.Section" android:text="@string/setup_notifications_title" />
+                <TextView style="@style/Replay.Hint" android:text="@string/setup_notifications_body" />
+                <TextView style="@style/Replay.Section" android:text="@string/setup_projection_title" />
+                <TextView style="@style/Replay.Hint" android:text="@string/setup_projection_body" />
+                <TextView style="@style/Replay.Section" android:text="@string/setup_overlay_title" />
+                <TextView style="@style/Replay.Hint" android:text="@string/setup_overlay_body" />
+                <TextView style="@style/Replay.Section" android:text="@string/setup_battery_title" />
+                <TextView style="@style/Replay.Hint" android:text="@string/setup_battery_body" />
+                <TextView style="@style/Replay.Section" android:text="@string/setup_shortcuts_title" />
+                <TextView style="@style/Replay.Hint" android:text="@string/setup_shortcuts_body" />
+                <TextView style="@style/Replay.Hint" android:text="@string/setup_accessibility_warning"
+                    android:textColor="@color/accent_red" android:textStyle="bold" />
+                <TextView style="@style/Replay.Section" android:text="@string/setup_start_title" />
+                <TextView style="@style/Replay.Hint" android:text="@string/setup_start_body" />
+            </LinearLayout>
+        </ScrollView>
+        <LinearLayout android:layout_width="0dp" android:layout_height="match_parent"
+            android:layout_weight="1" android:orientation="vertical">
+            <TextView android:id="@+id/setupPermissionStatus" style="@style/Replay.Hint"
+                android:layout_marginVertical="0dp" android:textStyle="bold" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnSetupCopy" style="@style/Replay.Button"
+                android:text="@string/setup_copy" android:nextFocusLeft="@id/setupScroll"
+                android:nextFocusDown="@id/btnSetupAccessibility" android:layout_marginTop="4dp" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnSetupAccessibility" style="@style/Replay.Button"
+                    android:layout_width="0dp" android:layout_weight="1" android:layout_marginEnd="4dp"
+                    android:text="@string/setup_accessibility" android:nextFocusUp="@id/btnSetupCopy"
+                    android:nextFocusRight="@id/btnSetupOverlay" android:nextFocusDown="@id/setupCommandsScroll" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnSetupOverlay" style="@style/Replay.Button"
+                    android:layout_width="0dp" android:layout_weight="1" android:text="@string/setup_overlay"
+                    android:nextFocusUp="@id/btnSetupCopy" android:nextFocusLeft="@id/btnSetupAccessibility"
+                    android:nextFocusDown="@id/setupCommandsScroll" />
+            </LinearLayout>
+            <ScrollView android:id="@+id/setupCommandsScroll" android:layout_width="match_parent"
+                android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="5dp"
+                android:fillViewport="true" android:focusable="true" android:focusableInTouchMode="true"
+                android:nextFocusLeft="@id/setupScroll" android:nextFocusUp="@id/btnSetupAccessibility"
+                android:nextFocusDown="@id/btnSetupClose" android:background="@drawable/replay_control_focus">
+                <TextView android:id="@+id/setupCommand" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:padding="10dp" android:textColor="@color/white" android:fontFamily="monospace"
+                    android:textSize="11sp" android:lineSpacingExtra="3dp" />
+            </ScrollView>
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal"
+        android:gravity="center_vertical" android:layout_marginTop="8dp">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:text="@string/setup_controller" android:textSize="11sp" android:textColor="@color/text_secondary"
+            android:layout_marginEnd="12dp" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/btnSetupClose" style="@style/Replay.Button"
+            android:layout_width="120dp" android:text="@string/setup_close" android:nextFocusUp="@id/setupCommandsScroll" />
+    </LinearLayout>
+</LinearLayout>

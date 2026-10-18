@@ -10,8 +10,8 @@ android {
         applicationId = "com.thor.instantreplay"
         minSdk = 29
         targetSdk = 34
-        versionCode = 9
-        versionName = "2.7.0"
+        versionCode = 11
+        versionName = "2.8.0"
         testInstrumentationRunner = "com.thor.instantreplay.ReplayUiInstrumentation"
     }
 

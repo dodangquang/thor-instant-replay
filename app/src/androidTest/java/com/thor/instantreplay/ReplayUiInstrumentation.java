@@ -38,6 +38,26 @@ public final class ReplayUiInstrumentation extends Instrumentation {
         Bundle result = new Bundle();
         Activity activity = null;
         Context ctx = getTargetContext();
+        if ("snapshot".equals(arguments.getString("mode"))) {
+            try {
+                result.putString("stream", "SNAPSHOT capturePrefsSha256=" + preferencesHash(ctx.getSharedPreferences("thor_replay_prefs", 0).getAll()) + " language=" + AppLanguage.get(ctx) + "\n");
+                finish(Activity.RESULT_OK, result);
+            } catch (Throwable error) {
+                result.putString("stream", "FAIL snapshot: " + error + "\n");
+                finish(Activity.RESULT_CANCELED, result);
+            }
+            return;
+        }
+        if ("focusSetup".equals(arguments.getString("mode"))) {
+            try {
+                String message = new FocusSetupRegression(this).run(arguments.getString("capturePrefsSha256"));
+                result.putString("stream", message + "\n"); finish(Activity.RESULT_OK, result);
+            } catch (Throwable error) {
+                java.io.StringWriter trace = new java.io.StringWriter(); error.printStackTrace(new java.io.PrintWriter(trace));
+                result.putString("stream", "FAIL focus/setup: " + trace + "\n"); finish(Activity.RESULT_CANCELED, result);
+            }
+            return;
+        }
         if ("clipBoundary".equals(arguments.getString("mode"))) {
             try {
                 ClipFilePolicyTest.main(new String[]{ctx.getCacheDir().getAbsolutePath()});
@@ -51,7 +71,11 @@ public final class ReplayUiInstrumentation extends Instrumentation {
         }
         Map<String, ?> before = new HashMap<>(ctx.getSharedPreferences("thor_replay_prefs", 0).getAll());
         String originalLanguage = AppLanguage.get(ctx);
+        SharedPreferences uiPrefs = ctx.getSharedPreferences("android_replay_ui", 0);
+        boolean hadGuide = uiPrefs.contains("setup_guide_seen_v1"), originalGuide = uiPrefs.getBoolean("setup_guide_seen_v1", false);
+        int outcome = Activity.RESULT_OK;
         try {
+            uiPrefs.edit().putBoolean("setup_guide_seen_v1", true).commit();
             String expectedPrefs = arguments.getString("capturePrefsSha256");
             if (expectedPrefs != null) require(expectedPrefs.equals(preferencesHash(before)), "Capture preferences changed during APK upgrade");
             for (String lang : new String[]{"vi", "en"}) {
@@ -73,17 +97,18 @@ public final class ReplayUiInstrumentation extends Instrumentation {
             }
             require(before.equals(ctx.getSharedPreferences("thor_replay_prefs", 0).getAll()), "Replay settings changed during UI migration test");
             result.putString("stream", "PASS: VI/EN resources, landscape, A release gate, stick initial delay/repeat, original replay preferences unchanged\n");
-            finish(Activity.RESULT_OK, result);
         } catch (Throwable error) {
+            outcome = Activity.RESULT_CANCELED;
             result.putString("stream", "FAIL: " + error + "\n");
-            finish(Activity.RESULT_CANCELED, result);
         } finally {
             AppLanguage.set(ctx, originalLanguage);
+            SharedPreferences.Editor edit = uiPrefs.edit(); if(hadGuide)edit.putBoolean("setup_guide_seen_v1",originalGuide);else edit.remove("setup_guide_seen_v1");edit.commit();
             if (activity != null) { Activity screen = activity; runOnMainSync(screen::finish); }
         }
+        finish(outcome, result);
     }
 
-    private String preferencesHash(Map<String, ?> preferences) throws Exception {
+    static String preferencesHash(Map<String, ?> preferences) throws Exception {
         StringBuilder canonical = new StringBuilder();
         for (Map.Entry<String, ?> entry : new TreeMap<>(preferences).entrySet()) {
             Object value = entry.getValue();
@@ -125,6 +150,10 @@ public final class ReplayUiInstrumentation extends Instrumentation {
             buttons[0].requestFocus();
             for(int i=0;i<100;i++) stick(screen, 1f);
             require(screen.getCurrentFocus()==buttons[1],"Analog event burst skipped multiple items");
+            for(int i=0;i<30;i++){stick(screen,.54f);stick(screen,.56f);}
+            require(screen.getCurrentFocus()==buttons[1],"Analog threshold jitter bypassed the initial hold delay");
+            for(int i=0;i<30;i++){stick(screen,.56f,.55f);stick(screen,.55f,.56f);}
+            require(screen.getCurrentFocus()==buttons[1],"Analog diagonal jitter bypassed the initial hold delay");
         });
         SystemClock.sleep(180);
         runOnMainSync(() -> require(screen.getCurrentFocus()==buttons[1],"Analog repeated before initial hold delay"));
@@ -136,12 +165,18 @@ public final class ReplayUiInstrumentation extends Instrumentation {
         SystemClock.sleep(200);
         runOnMainSync(() -> {
             require(screen.getCurrentFocus()==buttons[2],"Centered analog kept moving");
+            stick(screen,-.8f);
+            require(screen.getCurrentFocus()==buttons[1],"Deliberate analog reversal did not respond immediately");
+            stick(screen,0f);
             content.removeView(row);
         });
     }
     private void stick(Activity screen, float x) {
+        stick(screen,x,0f);
+    }
+    private void stick(Activity screen, float x,float y) {
         MotionEvent.PointerProperties props=new MotionEvent.PointerProperties(); props.id=0;
-        MotionEvent.PointerCoords coords=new MotionEvent.PointerCoords(); coords.setAxisValue(MotionEvent.AXIS_X,x);
+        MotionEvent.PointerCoords coords=new MotionEvent.PointerCoords(); coords.setAxisValue(MotionEvent.AXIS_X,x); coords.setAxisValue(MotionEvent.AXIS_Y,y);
         long now=SystemClock.uptimeMillis();
         MotionEvent event=MotionEvent.obtain(now,now,MotionEvent.ACTION_MOVE,1,new MotionEvent.PointerProperties[]{props},new MotionEvent.PointerCoords[]{coords},0,0,1,1,0,0,InputDevice.SOURCE_JOYSTICK,0);
         screen.dispatchGenericMotionEvent(event); event.recycle();

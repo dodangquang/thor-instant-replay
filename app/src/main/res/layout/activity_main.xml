@@ -1,49 +1,130 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent">
- <com.thor.instantreplay.ReplayBackdropView android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" />
- <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:padding="14dp" android:orientation="vertical">
-  <LinearLayout android:layout_width="match_parent" android:layout_height="46dp" android:gravity="center_vertical" android:orientation="horizontal">
-   <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="ANDROID REPLAY" android:textSize="25sp" android:fontFamily="sans-serif-black" android:textStyle="bold|italic" android:textColor="@color/nvidia_black" />
-   <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="THOR QOL / 03" android:textSize="11sp" android:textStyle="bold" android:textColor="@color/nvidia_black" android:paddingEnd="14dp" />
-   <com.google.android.material.button.MaterialButton android:id="@+id/btnAccount" style="@style/Replay.Button" android:layout_width="130dp" android:layout_height="42dp" android:text="@string/account" />
-   <com.google.android.material.button.MaterialButton android:id="@+id/btnLanguage" style="@style/Replay.Button" android:layout_width="90dp" android:layout_height="42dp" android:text="VI / EN" />
-  </LinearLayout>
-  <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:layout_marginTop="6dp">
-   <LinearLayout android:id="@+id/heroPanel" android:layout_width="260dp" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/replay_panel" android:padding="12dp">
-    <ImageView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:src="@drawable/android_replay_logo" android:background="@color/replay_purple" android:scaleType="fitCenter" android:contentDescription="@string/logo_description" />
-    <TextView android:id="@+id/tvStatus" style="@style/Replay.Status" android:text="@string/status_stopped" />
-    <TextView android:id="@+id/tvBufferStats" style="@style/Replay.Hint" android:text="RAM · 0 MB" />
-<com.google.android.material.button.MaterialButton android:id="@+id/btnToggleService" style="@style/Replay.Button" android:text="@string/btn_start"  /><com.google.android.material.button.MaterialButton android:id="@+id/btnSaveClip" style="@style/Replay.Button" android:text="@string/btn_save_clip" android:enabled="false" /><com.google.android.material.button.MaterialButton android:id="@+id/btnManualRecord" style="@style/Replay.Button" android:text="@string/btn_manual_record_start" android:enabled="false" />
-   </LinearLayout>
-   <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="46dp" android:orientation="horizontal">
-<com.google.android.material.button.MaterialButton android:id="@+id/tabCapture" style="@style/Replay.Button" android:text="@string/capture" android:layout_width="0dp" android:layout_weight="1" /><com.google.android.material.button.MaterialButton android:id="@+id/tabAudio" style="@style/Replay.Button" android:text="@string/audio" android:layout_width="0dp" android:layout_weight="1" /><com.google.android.material.button.MaterialButton android:id="@+id/tabClips" style="@style/Replay.Button" android:text="@string/clips" android:layout_width="0dp" android:layout_weight="1" /><com.google.android.material.button.MaterialButton android:id="@+id/tabControls" style="@style/Replay.Button" android:text="@string/controls" android:layout_width="0dp" android:layout_weight="1" />
+    <com.thor.instantreplay.ReplayBackdropView android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:paddingStart="14dp" android:paddingEnd="14dp" android:orientation="vertical" android:paddingTop="10dp" android:paddingBottom="0dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center_vertical" android:orientation="horizontal">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="ANDROID REPLAY" android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="18sp" android:autoSizeMaxTextSize="24sp" android:textSize="24sp" android:fontFamily="sans-serif-condensed" android:textStyle="bold|italic" android:textColor="@color/nvidia_black" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="THOR QOL / 03" android:textSize="10sp" android:textStyle="bold" android:textColor="@color/nvidia_black" android:paddingEnd="10dp" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnSetup" style="@style/Replay.Button" android:layout_width="102dp" android:layout_height="42dp" android:text="@string/setup" app:icon="@drawable/ic_replay_setup" android:layout_marginEnd="5dp" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnAccount" style="@style/Replay.Button" android:layout_width="116dp" android:layout_height="42dp" android:text="@string/account" app:icon="@drawable/ic_replay_account" android:layout_marginEnd="5dp" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnLanguage" style="@style/Replay.Button" android:layout_width="88dp" android:layout_height="42dp" android:text="VI / EN" app:icon="@drawable/ic_replay_language" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:layout_marginTop="10dp" android:layout_marginBottom="8dp">
+            <com.thor.instantreplay.ReplayPanelLayout android:id="@+id/heroPanel" android:layout_width="242dp" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/replay_panel" android:padding="12dp" android:tag="poster">
+                <TextView style="@style/Replay.Eyebrow" android:text="@string/replay_eyebrow" />
+                <ImageView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:src="@drawable/android_replay_logo" android:background="@color/replay_purple" android:scaleType="fitCenter" android:contentDescription="@string/logo_description" android:layout_marginTop="6dp" android:layout_marginBottom="8dp" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                    <ImageView android:id="@+id/statusDot" android:layout_width="8dp" android:layout_height="8dp" android:src="@drawable/replay_status_dot" android:layout_marginEnd="8dp" android:importantForAccessibility="no" />
+                    <TextView android:id="@+id/tvStatus" style="@style/Replay.Status" android:text="@string/status_stopped" android:layout_width="0dp" android:layout_weight="1" android:layout_marginTop="0dp" android:layout_marginBottom="0dp" />
+                </LinearLayout>
+                <TextView android:id="@+id/tvBufferStats" style="@style/Replay.Hint" android:text="RAM · 0 MB" android:textSize="12sp" android:layout_marginTop="5dp" android:layout_marginBottom="8dp" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnToggleService" style="@style/Replay.Button" android:text="@string/btn_start" app:icon="@drawable/ic_replay_play" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnSaveClip" style="@style/Replay.Button" android:text="@string/btn_save_clip" android:enabled="false" app:icon="@drawable/ic_replay_save" android:layout_marginTop="4dp" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btnManualRecord" style="@style/Replay.Button" android:text="@string/btn_manual_record_start" android:enabled="false" app:icon="@drawable/ic_replay_record" android:layout_marginTop="4dp" />
+            </com.thor.instantreplay.ReplayPanelLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginStart="16dp" android:orientation="vertical">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="5dp">
+                    <TextView style="@style/Replay.Dashboard" android:text="@string/dashboard_title" android:layout_width="0dp" android:layout_weight="1" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="30 / 60 / 120 s" android:textColor="@color/nvidia_black" android:textSize="11sp" android:fontFamily="monospace" android:textStyle="bold" />
+                </LinearLayout>
+                <LinearLayout android:id="@+id/tabRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:orientation="horizontal">
+                    <com.google.android.material.button.MaterialButton android:id="@+id/tabCapture" style="@style/Replay.Button" android:text="@string/capture" android:layout_width="0dp" android:layout_weight="1" app:icon="@drawable/ic_replay_capture" android:layout_marginEnd="4dp" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/tabAudio" style="@style/Replay.Button" android:text="@string/audio" android:layout_width="0dp" android:layout_weight="1" app:icon="@drawable/ic_replay_audio" android:layout_marginEnd="4dp" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/tabClips" style="@style/Replay.Button" android:text="@string/clips" android:layout_width="0dp" android:layout_weight="1" app:icon="@drawable/ic_replay_clips" android:layout_marginEnd="4dp" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/tabControls" style="@style/Replay.Button" android:text="@string/controls" android:layout_width="0dp" android:layout_weight="1" app:icon="@drawable/ic_replay_controller" />
+                </LinearLayout>
+                <ScrollView android:focusable="false" android:id="@+id/contentScroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:layout_marginTop="7dp" android:background="@drawable/replay_panel" android:clipToPadding="false" android:smoothScrollbar="true">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp">
+                        <LinearLayout android:id="@+id/sectionCapture" style="@style/Replay.SectionLayout">
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/replay_group" android:padding="12dp" android:layout_marginBottom="10dp">
+                                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="6dp">
+                                    <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_replay_refresh" android:tint="@color/nvidia_green" android:layout_marginEnd="8dp" android:importantForAccessibility="no" />
+                                    <TextView style="@style/Replay.Section" android:text="@string/setting_duration" android:layout_marginTop="0dp" android:layout_marginBottom="0dp" />
+                                </LinearLayout>
+                                <com.google.android.material.chip.ChipGroup android:id="@+id/chipGroupDuration" android:layout_width="match_parent" android:layout_height="wrap_content" app:singleSelection="true" app:selectionRequired="true">
+                                    <com.google.android.material.chip.Chip android:id="@+id/chip30s" style="@style/Replay.Chip" android:text="@string/duration30" />
+                                    <com.google.android.material.chip.Chip android:id="@+id/chip60s" style="@style/Replay.Chip" android:text="@string/duration60" />
+                                    <com.google.android.material.chip.Chip android:id="@+id/chip120s" style="@style/Replay.Chip" android:text="@string/duration120" />
+                                </com.google.android.material.chip.ChipGroup>
+                            </LinearLayout>
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/replay_group" android:padding="12dp" android:layout_marginBottom="10dp">
+                                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="6dp">
+                                    <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_replay_capture" android:tint="@color/nvidia_green" android:layout_marginEnd="8dp" android:importantForAccessibility="no" />
+                                    <TextView style="@style/Replay.Section" android:text="@string/setting_resolution" android:layout_marginTop="0dp" android:layout_marginBottom="0dp" />
+                                </LinearLayout>
+                                <com.google.android.material.chip.ChipGroup android:id="@+id/chipGroupResolution" android:layout_width="match_parent" android:layout_height="wrap_content" app:singleSelection="true" app:selectionRequired="true">
+                                    <com.google.android.material.chip.Chip android:id="@+id/chip720p" style="@style/Replay.Chip" android:text="720p" />
+                                    <com.google.android.material.chip.Chip android:id="@+id/chip1080p" style="@style/Replay.Chip" android:text="1080p" />
+                                </com.google.android.material.chip.ChipGroup>
+                                <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swDualScreen" android:visibility="gone" style="@style/Replay.Switch" android:text="@string/setting_dual_screen" />
+                                <TextView style="@style/Replay.Hint" android:text="@string/dual_hint" android:textSize="11sp" android:layout_marginVertical="3dp" />
+                            </LinearLayout>
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/replay_group" android:padding="12dp" android:layout_marginBottom="10dp">
+                                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="6dp">
+                                    <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_replay_folder" android:tint="@color/nvidia_green" android:layout_marginEnd="8dp" android:importantForAccessibility="no" />
+                                    <TextView style="@style/Replay.Section" android:text="@string/setting_quota" android:layout_marginTop="0dp" android:layout_marginBottom="0dp" />
+                                </LinearLayout>
+                                <com.google.android.material.chip.ChipGroup android:id="@+id/chipGroupQuota" android:layout_width="match_parent" android:layout_height="wrap_content" app:singleSelection="true" app:selectionRequired="true">
+                                    <com.google.android.material.chip.Chip android:id="@+id/chipQuota30" style="@style/Replay.Chip" android:text="@string/quota30" />
+                                    <com.google.android.material.chip.Chip android:id="@+id/chipQuota50" style="@style/Replay.Chip" android:text="@string/quota50" />
+                                    <com.google.android.material.chip.Chip android:id="@+id/chipQuotaUnlimited" style="@style/Replay.Chip" android:text="@string/unlimited" />
+                                </com.google.android.material.chip.ChipGroup>
+                                <TextView style="@style/Replay.Hint" android:text="@string/quota_hint" android:textSize="11sp" android:layout_marginVertical="3dp" />
+                            </LinearLayout>
+                            <TextView style="@style/Replay.Hint" android:text="@string/capture_hint" android:textSize="11sp" />
+                            <TextView android:id="@+id/tvAdbStatus" style="@style/Replay.Hint" android:text="@string/adb_status_need" android:textSize="11sp" />
+                        </LinearLayout>
+                        <LinearLayout android:id="@+id/sectionAudio" style="@style/Replay.SectionLayout" android:visibility="gone">
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/replay_group" android:padding="12dp" android:layout_marginBottom="10dp">
+                                <TextView android:id="@+id/tvGameVolumeLabel" style="@style/Replay.Section" />
+                                <com.google.android.material.slider.Slider android:id="@+id/sliderGameVolume" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="0" android:valueTo="150" android:stepSize="5" android:value="85" app:thumbColor="@color/nvidia_green" app:trackColorActive="@color/nvidia_green" />
+                            </LinearLayout>
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/replay_group" android:padding="12dp" android:layout_marginBottom="10dp">
+                                <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swRecordMic" style="@style/Replay.Switch" android:text="@string/setting_record_mic" />
+                                <TextView android:id="@+id/tvMicVolumeLabel" style="@style/Replay.Section" />
+                                <com.google.android.material.slider.Slider android:id="@+id/sliderMicVolume" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="50" android:valueTo="300" android:stepSize="10" android:value="150" app:thumbColor="@color/nvidia_green" app:trackColorActive="@color/nvidia_green" />
+                                <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swNoiseFilter" style="@style/Replay.Switch" android:text="@string/setting_noise_filter" />
+                            </LinearLayout>
+                            <TextView style="@style/Replay.Hint" android:text="@string/audio_hint" />
+                        </LinearLayout>
+                        <LinearLayout android:id="@+id/sectionClips" style="@style/Replay.SectionLayout" android:visibility="gone">
+                            <TextView style="@style/Replay.Section" android:text="@string/recent_clips" />
+                            <com.google.android.material.button.MaterialButton android:id="@+id/btnWifiShare" style="@style/Replay.Button" android:text="@string/btn_wifi_share" app:icon="@drawable/ic_replay_share" android:layout_marginBottom="10dp" />
+                            <LinearLayout android:id="@+id/layoutClipsList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+                        </LinearLayout>
+                        <LinearLayout android:id="@+id/sectionControls" style="@style/Replay.SectionLayout" android:visibility="gone">
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/replay_group" android:padding="12dp" android:layout_marginBottom="10dp">
+                                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="6dp">
+                                    <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_replay_controller" android:tint="@color/nvidia_green" android:layout_marginEnd="8dp" android:importantForAccessibility="no" />
+                                    <TextView style="@style/Replay.Section" android:text="@string/shortcuts_heading" android:layout_marginTop="0dp" android:layout_marginBottom="0dp" />
+                                </LinearLayout>
+                                <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swHomeHold" style="@style/Replay.Switch" android:text="@string/setting_home_hold" />
+                                <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swInstantL3R3" style="@style/Replay.Switch" android:text="@string/setting_instant_combo" />
+                                <TextView style="@style/Replay.Hint" android:text="@string/shortcut_hint" />
+                            </LinearLayout>
+                            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/replay_group" android:padding="12dp" android:layout_marginBottom="10dp">
+                                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="6dp">
+                                    <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_replay_setup" android:tint="@color/nvidia_green" android:layout_marginEnd="8dp" android:importantForAccessibility="no" />
+                                    <TextView style="@style/Replay.Section" android:text="@string/background_heading" android:layout_marginTop="0dp" android:layout_marginBottom="0dp" />
+                                </LinearLayout>
+                                <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swFloatingButton" style="@style/Replay.Switch" android:text="@string/setting_floating_button" />
+                                <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swPauseScreenOff" style="@style/Replay.Switch" android:text="@string/setting_pause_screen_off" />
+                                <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swAutoBoot" style="@style/Replay.Switch" android:text="@string/setting_boot" />
+                                <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swSoundChime" style="@style/Replay.Switch" android:text="@string/setting_sound_chime" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </LinearLayout>
+                </ScrollView>
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="28dp" android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView style="@style/Replay.FooterHint" android:text="@string/nav_move" />
+            <View android:layout_width="1dp" android:layout_height="12dp" android:layout_marginHorizontal="12dp" android:background="@color/accent_red" />
+            <TextView style="@style/Replay.FooterHint" android:text="@string/nav_choose" />
+            <View android:layout_width="1dp" android:layout_height="12dp" android:layout_marginHorizontal="12dp" android:background="@color/accent_red" />
+            <TextView style="@style/Replay.FooterHint" android:text="@string/nav_back" />
+            <View android:layout_width="1dp" android:layout_height="12dp" android:layout_marginHorizontal="12dp" android:background="@color/accent_red" />
+            <TextView style="@style/Replay.FooterHint" android:text="@string/nav_tabs" />
+        </LinearLayout>
     </LinearLayout>
-    <ScrollView android:id="@+id/contentScroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:layout_marginTop="8dp" android:background="@drawable/replay_panel" android:clipToPadding="false">
-     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-      <LinearLayout android:id="@+id/sectionCapture" style="@style/Replay.SectionLayout">
-<TextView style="@style/Replay.Section" android:text="@string/setting_duration" /><com.google.android.material.chip.ChipGroup android:id="@+id/chipGroupDuration" android:layout_width="match_parent" android:layout_height="wrap_content" app:singleSelection="true" app:selectionRequired="true"><com.google.android.material.chip.Chip android:id="@+id/chip30s" style="@style/Replay.Chip" android:text="@string/duration30" /><com.google.android.material.chip.Chip android:id="@+id/chip60s" style="@style/Replay.Chip" android:text="@string/duration60" /><com.google.android.material.chip.Chip android:id="@+id/chip120s" style="@style/Replay.Chip" android:text="@string/duration120" /></com.google.android.material.chip.ChipGroup><TextView style="@style/Replay.Section" android:text="@string/setting_resolution" /><com.google.android.material.chip.ChipGroup android:id="@+id/chipGroupResolution" android:layout_width="match_parent" android:layout_height="wrap_content" app:singleSelection="true" app:selectionRequired="true"><com.google.android.material.chip.Chip android:id="@+id/chip720p" style="@style/Replay.Chip" android:text="720p" /><com.google.android.material.chip.Chip android:id="@+id/chip1080p" style="@style/Replay.Chip" android:text="1080p" /></com.google.android.material.chip.ChipGroup><com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swDualScreen" android:visibility="gone" style="@style/Replay.Switch" android:text="@string/setting_dual_screen" /><TextView style="@style/Replay.Hint" android:text="@string/dual_hint" /><TextView style="@style/Replay.Section" android:text="@string/setting_quota" /><com.google.android.material.chip.ChipGroup android:id="@+id/chipGroupQuota" android:layout_width="match_parent" android:layout_height="wrap_content" app:singleSelection="true" app:selectionRequired="true"><com.google.android.material.chip.Chip android:id="@+id/chipQuota30" style="@style/Replay.Chip" android:text="@string/quota30" /><com.google.android.material.chip.Chip android:id="@+id/chipQuota50" style="@style/Replay.Chip" android:text="@string/quota50" /><com.google.android.material.chip.Chip android:id="@+id/chipQuotaUnlimited" style="@style/Replay.Chip" android:text="@string/unlimited" /></com.google.android.material.chip.ChipGroup><TextView style="@style/Replay.Hint" android:text="@string/quota_hint" /><TextView style="@style/Replay.Hint" android:text="@string/capture_hint" />
-       <TextView android:id="@+id/tvAdbStatus" style="@style/Replay.Hint" android:text="@string/adb_status_need" />
-      </LinearLayout>
-      <LinearLayout android:id="@+id/sectionAudio" style="@style/Replay.SectionLayout" android:visibility="gone">
-       <TextView android:id="@+id/tvGameVolumeLabel" style="@style/Replay.Section" />
-       <com.google.android.material.slider.Slider android:id="@+id/sliderGameVolume" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="0" android:valueTo="150" android:stepSize="5" android:value="85" app:thumbColor="@color/nvidia_green" app:trackColorActive="@color/nvidia_green" />
-<com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swRecordMic" style="@style/Replay.Switch" android:text="@string/setting_record_mic" />
-       <TextView android:id="@+id/tvMicVolumeLabel" style="@style/Replay.Section" />
-       <com.google.android.material.slider.Slider android:id="@+id/sliderMicVolume" android:layout_width="match_parent" android:layout_height="wrap_content" android:valueFrom="50" android:valueTo="300" android:stepSize="10" android:value="150" app:thumbColor="@color/nvidia_green" app:trackColorActive="@color/nvidia_green" />
-<com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swNoiseFilter" style="@style/Replay.Switch" android:text="@string/setting_noise_filter" /><TextView style="@style/Replay.Hint" android:text="@string/audio_hint" />
-      </LinearLayout>
-      <LinearLayout android:id="@+id/sectionClips" style="@style/Replay.SectionLayout" android:visibility="gone">
-<TextView style="@style/Replay.Section" android:text="@string/recent_clips" /><com.google.android.material.button.MaterialButton android:id="@+id/btnWifiShare" style="@style/Replay.Button" android:text="@string/btn_wifi_share"  />
-       <LinearLayout android:id="@+id/layoutClipsList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
-      </LinearLayout>
-      <LinearLayout android:id="@+id/sectionControls" style="@style/Replay.SectionLayout" android:visibility="gone">
-<com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swHomeHold" style="@style/Replay.Switch" android:text="@string/setting_home_hold" /><com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swInstantL3R3" style="@style/Replay.Switch" android:text="@string/setting_instant_combo" /><TextView style="@style/Replay.Hint" android:text="@string/shortcut_hint" /><com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swFloatingButton" style="@style/Replay.Switch" android:text="@string/setting_floating_button" /><com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swPauseScreenOff" style="@style/Replay.Switch" android:text="@string/setting_pause_screen_off" /><com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swAutoBoot" style="@style/Replay.Switch" android:text="@string/setting_boot" /><com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swSoundChime" style="@style/Replay.Switch" android:text="@string/setting_sound_chime" />
-      </LinearLayout>
-     </LinearLayout>
-    </ScrollView>
-   </LinearLayout>
-  </LinearLayout>
-  <TextView android:layout_width="match_parent" android:layout_height="30dp" android:gravity="center_vertical" android:text="@string/controller_hint" android:textColor="@color/nvidia_black" android:textSize="11sp" android:textStyle="bold" />
- </LinearLayout>
 </FrameLayout>

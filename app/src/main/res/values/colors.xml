@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- NVIDIA Brand Colors -->
-    <color name="nvidia_green">#DCFF30</color>
+    <color name="nvidia_green">#E4F43C</color>
     <color name="nvidia_green_glow">#20E5E5</color>
     <color name="nvidia_green_dark">#6F9018</color>
     <color name="nvidia_green_bg">#20392D</color>
@@ -9,20 +9,20 @@
     <!-- Dark Gaming Theme -->
     <color name="nvidia_black">#10151B</color>
     <color name="nvidia_dark_bg">#10151B</color>
-    <color name="nvidia_card_bg">#1B202C</color>
-    <color name="nvidia_card_inner">#29313F</color>
-    <color name="nvidia_card_stroke">#40535B</color>
+    <color name="nvidia_card_bg">#211F30</color>
+    <color name="nvidia_card_inner">#292B40</color>
+    <color name="nvidia_card_stroke">#375B67</color>
     <color name="nvidia_card_stroke_active">#DCFF30</color>
     
     <!-- Text Colors -->
-    <color name="text_primary">#F5F5F5</color>
+    <color name="text_primary">#F7FFFF</color>
     <color name="text_secondary">#B6C6D0</color>
     <color name="text_muted">#84919D</color>
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
     
     <!-- Status & Alerts -->
-    <color name="accent_red">#FF4AA5</color>
+    <color name="accent_red">#FF4795</color>
     <color name="accent_green">#DCFF30</color>
     <color name="dark_bg">#10151B</color>
     <color name="card_bg">#1B202C</color>

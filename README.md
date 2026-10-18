@@ -1,4 +1,4 @@
-# Android Replay 2.7.0
+# Android Replay 2.8.0
 
 Android Replay lưu khoảnh khắc vừa chơi và quay video trên Android. Đây là tên hiển thị mới của Thor Instant Replay; package `com.thor.instantreplay`, dữ liệu và các action tích hợp cũ được giữ nguyên.
 
@@ -18,6 +18,47 @@ Android Replay lưu khoảnh khắc vừa chơi và quay video trên Android. Đ
 - Giao diện ngang điều khiển bằng D-pad / cần trái; A kích hoạt khi nhả, LB / RB đổi mục. Tiếng Việt và English có thể chọn trong app.
 
 Video được ghi từ màn hình chính. Ghép hai màn hình chưa được triển khai trong nguồn hiện tại, vì vậy bản này không hiển thị lựa chọn ghép màn hình. Android yêu cầu quyền ghi hình / ghi âm; một số ứng dụng có thể chặn thu âm thanh nội bộ. Hiệu năng thực tế phụ thuộc thiết bị và game.
+
+## Giao diện 2.8
+
+Panel vát góc, nền cyan, viền magenta và focus vàng chanh đồng bộ phong cách với Việt Hóa PC. Logo, trạng thái ghi đệm và các nút ghi/lưu nằm bên trái; bốn tab có icon và nhóm cài đặt riêng. Focus nằm trong nút để không bị cắt khi dùng controller. Chuyển tab và focus có animation ngắn; đèn ghi đệm chỉ nhấp nháy khi màn hình app đang hoạt động và hệ thống cho phép animation.
+
+Nút **THIẾT LẬP / SETUP** mở lại hướng dẫn ADB bất cứ lúc nào. Hướng dẫn cũng xuất hiện ở lần chạy đầu, hỗ trợ VI/EN, cuộn bằng LB/RB và sao chép đầy đủ các lệnh dưới đây. App hiển thị/sao chép lệnh để chạy trên PC; nút hướng dẫn không tự cấp quyền.
+
+![Hướng dẫn ADB sáu mục](docs/screenshots/android-replay-setup-vi.png)
+
+## Thiết lập ADB / ADB setup
+
+Kết nối USB, bật gỡ lỗi USB và xác nhận PC trên thiết bị. Chạy lệnh từ Android SDK Platform-Tools trên PC. Trong PowerShell tại thư mục platform-tools, thay `adb` bằng `.\adb.exe`.
+
+Connect USB, enable USB debugging and approve the PC on the device. Run the commands from Android SDK Platform-Tools on your PC. In PowerShell inside platform-tools, use `.\adb.exe` instead of `adb`.
+
+```sh
+adb devices
+
+# 1. Micro / Microphone
+adb shell pm grant com.thor.instantreplay android.permission.RECORD_AUDIO
+
+# 2. Thông báo (Android 13+) / Notifications (Android 13+)
+adb shell pm grant com.thor.instantreplay android.permission.POST_NOTIFICATIONS
+
+# 3. Quay nền trên ROM hỗ trợ / Background capture on supported ROMs
+adb shell appops set com.thor.instantreplay PROJECT_MEDIA allow
+
+# 4. Nút nổi / Floating HUD
+adb shell appops set com.thor.instantreplay SYSTEM_ALERT_WINDOW allow
+
+# 5. Miễn tối ưu pin / Battery optimization exemption
+adb shell dumpsys deviceidle whitelist +com.thor.instantreplay
+
+# 6. Phím tắt, giữ Thor Wayfinder / Shortcuts, keep Thor Wayfinder
+adb shell settings put secure enabled_accessibility_services com.thor.instantreplay/.service.ThorKeyTriggerService:com.thorwayfinder.app/.ForegroundAppService
+adb shell settings put secure accessibility_enabled 1
+```
+
+Lệnh số 6 đặt danh sách Accessibility thành Replay + Thor Wayfinder. Nếu dùng dịch vụ Accessibility khác, thêm component của chúng vào danh sách, ngăn cách bằng dấu `:`. Lệnh không thay thời gian giữ HOME; ngưỡng hiện tại là 3 giây.
+
+Command 6 sets the Accessibility list to Replay + Thor Wayfinder. Append any other Accessibility service components separated by `:` if you use them. The command does not change the HOME hold duration; the current threshold is 3 seconds.
 
 ## English
 

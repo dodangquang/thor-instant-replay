@@ -13,27 +13,31 @@ class ReplayBackdropView(context: Context, attrs: AttributeSet?) : View(context,
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val path = Path()
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(Color.rgb(22, 202, 204))
+        canvas.drawColor(Color.rgb(15, 188, 193))
         val u = resources.displayMetrics.density
-        paint.color = Color.argb(22, 0, 66, 74)
+        paint.color = Color.argb(24, 0, 66, 74)
         var y = 0f
         while (y < height) {
             var x = 0f
             while (x < width) {
-                path.reset()
-                path.moveTo(x + 9*u, y); path.lineTo(x + 18*u, y + 9*u)
-                path.lineTo(x + 9*u, y + 18*u); path.lineTo(x, y + 9*u); path.close()
-                canvas.drawPath(path, paint); x += 28*u
+                canvas.drawCircle(x,y,2*u,paint); x += 18*u
             }
-            y += 28*u
+            y += 18*u
         }
-        paint.color = Color.rgb(221, 255, 46)
-        path.reset(); path.moveTo(0f, 0f); path.lineTo(width*.62f,0f)
-        path.lineTo(width*.58f,66*u); path.lineTo(0f,66*u); path.close()
+        paint.color = Color.argb(35, 0, 85, 96)
+        path.reset();path.moveTo(width*.69f,0f);path.lineTo(width*.89f,0f)
+        path.lineTo(width*.65f,height.toFloat());path.lineTo(width*.45f,height.toFloat());path.close()
         canvas.drawPath(path,paint)
-        paint.color = Color.rgb(255, 52, 158)
-        path.reset(); path.moveTo(266*u,75*u); path.lineTo(273*u,75*u)
-        path.lineTo(251*u,height-42*u); path.lineTo(244*u,height-42*u); path.close()
+        paint.color = Color.rgb(247,255,255)
+        val headerWidth=minOf(308*u,width*.47f)
+        path.reset(); path.moveTo(0f, 8*u); path.lineTo(headerWidth,8*u)
+        path.lineTo(headerWidth-15*u,60*u); path.lineTo(0f,60*u); path.close()
         canvas.drawPath(path,paint)
+        paint.color = Color.rgb(255, 71, 149)
+        path.reset(); path.moveTo(262*u,68*u); path.lineTo(269*u,68*u)
+        path.lineTo(248*u,height-28*u); path.lineTo(241*u,height-28*u); path.close()
+        canvas.drawPath(path,paint)
+        paint.color=Color.rgb(33,31,48)
+        canvas.drawRect(0f,height-28*u,width.toFloat(),height.toFloat(),paint)
     }
 }

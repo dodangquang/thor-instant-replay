@@ -56,6 +56,9 @@ class MainActivity : AppCompatActivity() {
     private var webServer: ThorWebServer? = null
 
     private var selectedTab = 0
+    private var setupDialog: ReplaySetupDialog? = null
+    private var statusPulse: ValueAnimator? = null
+    private var uiResumed = false
     private var confirmArmed = false
     private var confirmTarget: View? = null
     private var stickDirection = 0
@@ -93,8 +96,11 @@ class MainActivity : AppCompatActivity() {
         selectTab(savedInstanceState?.getInt("tab", 0) ?: 0, false)
         if (ValueAnimator.areAnimatorsEnabled()) {
             binding.heroPanel.alpha = 0f
-            binding.heroPanel.translationX = -18f
+            binding.heroPanel.translationX = 12f
             binding.heroPanel.animate().alpha(1f).translationX(0f).setDuration(240).start()
+            binding.contentScroll.alpha = 0f
+            binding.contentScroll.translationY = -10f
+            binding.contentScroll.animate().alpha(1f).translationY(0f).setDuration(200).setStartDelay(35).start()
         }
         binding.btnToggleService.requestFocusFromTouch()
         startPeriodicStatusCheck()
@@ -102,10 +108,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        uiResumed = true
         if (!LicenseAccess.guard(this)) return
         checkAdbPermissionStatus()
         refreshClipsList()
         updateServiceUIState()
+        setupDialog?.refreshStatus()
     }
 
     private fun setupUI() {
@@ -344,7 +352,7 @@ class MainActivity : AppCompatActivity() {
             binding.btnManualRecord.isEnabled = true
 
             if (isManual) {
-                binding.tvStatus.text = t("● ĐANG QUAY VIDEO", "● RECORDING VIDEO")
+                binding.tvStatus.text = t("ĐANG QUAY VIDEO", "RECORDING VIDEO")
                 binding.tvStatus.setTextColor(getColor(R.color.accent_red))
                 binding.btnManualRecord.text = getString(R.string.btn_manual_record_stop)
                 binding.btnManualRecord.backgroundTintList = ColorStateList.valueOf(getColor(R.color.accent_red))
@@ -381,6 +389,37 @@ class MainActivity : AppCompatActivity() {
             binding.btnManualRecord.backgroundTintList = ColorStateList.valueOf(getColor(R.color.nvidia_card_inner))
             binding.btnManualRecord.setTextColor(getColor(R.color.text_muted))
             binding.tvBufferStats.text = t("RAM · 0 MB / Đang chờ", "RAM · 0 MB / Standby")
+        }
+        val running = ReplayService.isRunning
+        val manual = ReplayService.isManualRecording
+        binding.btnToggleService.setIconResource(if (running) R.drawable.ic_replay_stop else R.drawable.ic_replay_play)
+        binding.btnManualRecord.setIconResource(if (manual) R.drawable.ic_replay_stop else R.drawable.ic_replay_record)
+        styleButton(binding.btnToggleService, getColor(if (running) R.color.accent_red else R.color.nvidia_green), getColor(R.color.nvidia_black))
+        styleButton(binding.btnSaveClip, getColor(R.color.nvidia_card_inner), getColor(R.color.nvidia_green))
+        styleButton(binding.btnManualRecord, getColor(if (manual) R.color.accent_red else R.color.nvidia_card_inner), getColor(if (manual) R.color.nvidia_black else R.color.accent_red))
+        binding.statusDot.imageTintList = ColorStateList.valueOf(getColor(if (manual) R.color.accent_red else if (running) R.color.nvidia_green else R.color.text_muted))
+        updateStatusPulse()
+    }
+
+    private fun styleButton(button: MaterialButton, background: Int, text: Int) {
+        val states = arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf(android.R.attr.state_focused), intArrayOf())
+        button.backgroundTintList = ColorStateList(states, intArrayOf(getColor(R.color.nvidia_card_inner), getColor(R.color.nvidia_green), background))
+        val foreground = ColorStateList(states, intArrayOf(getColor(R.color.text_muted), getColor(R.color.nvidia_black), text))
+        button.setTextColor(foreground)
+        button.iconTint = foreground
+    }
+
+    private fun updateStatusPulse() {
+        val animate = uiResumed && hasWindowFocus() && ReplayService.isRunning && ValueAnimator.areAnimatorsEnabled()
+        if (animate) {
+            if (statusPulse?.isRunning == true) return
+            statusPulse = ValueAnimator.ofFloat(.45f, 1f).apply {
+                duration = 1100L; repeatCount = ValueAnimator.INFINITE; repeatMode = ValueAnimator.REVERSE
+                addUpdateListener { binding.statusDot.alpha = it.animatedValue as Float }
+                start()
+            }
+        } else {
+            statusPulse?.cancel(); statusPulse = null; binding.statusDot.alpha = 1f
         }
     }
 
@@ -421,12 +460,13 @@ class MainActivity : AppCompatActivity() {
             val sizeMb = file.length() / (1024 * 1024)
             val clipCard = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
-                setPadding(16, 12, 16, 12)
-                setBackgroundColor(getColor(R.color.nvidia_card_bg))
+                setPadding((12*density).toInt(), (10*density).toInt(), (12*density).toInt(), (10*density).toInt())
                 gravity = android.view.Gravity.CENTER_VERTICAL
                 isFocusable = true
-                background = getDrawable(R.drawable.replay_control_focus)
-                minimumHeight = (64 * resources.displayMetrics.density).toInt()
+                tag = "clip"
+                background = ReplayCutDrawable(density, interactive = true)
+                minimumHeight = (68 * density).toInt()
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin=(8*density).toInt() }
                 setOnClickListener { openVideo(file) }
                 contentDescription = file.name
                 installFocusMotion(this)
@@ -445,13 +485,13 @@ class MainActivity : AppCompatActivity() {
                 scaleType = ImageView.ScaleType.CENTER_CROP
             }
 
-            val playIcon = TextView(this).apply {
+            val playIcon = ImageView(this).apply {
                 layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
                     gravity = android.view.Gravity.CENTER
                 }
-                text = "▶"
-                setTextColor(getColor(R.color.nvidia_green))
-                textSize = 11f
+                setImageResource(R.drawable.ic_replay_play)
+                imageTintList = ColorStateList.valueOf(getColor(R.color.nvidia_green))
+                minimumWidth = (24*density).toInt(); minimumHeight = (24*density).toInt()
             }
 
             thumbContainer.addView(thumbnailIv)
@@ -486,9 +526,12 @@ class MainActivity : AppCompatActivity() {
                 setTextColor(getColor(R.color.text_primary))
                 textSize = 13f
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
             }
 
             val metaTv = TextView(this).apply {
+                tag = "clip_meta"
                 text = "${sizeMb} MB · MP4"
                 setTextColor(getColor(R.color.text_secondary))
                 textSize = 11f
@@ -499,14 +542,7 @@ class MainActivity : AppCompatActivity() {
             clipCard.addView(thumbContainer)
             clipCard.addView(infoLayout)
 
-            val divider = View(this).apply {
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2).apply {
-                    setMargins(0, 2, 0, 2)
-                }
-                setBackgroundColor(getColor(R.color.nvidia_black))
-            }
             binding.layoutClipsList.addView(clipCard)
-            binding.layoutClipsList.addView(divider)
         }
     }
 
@@ -570,6 +606,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        binding.heroPanel.animate().cancel()
+        binding.contentScroll.animate().cancel()
+        statusPulse?.cancel()
+        statusPulse = null
+        setupDialog?.dismiss()
+        setupDialog = null
         handler.removeCallbacksAndMessages(null)
         webServer?.stop()
         webServer = null
@@ -586,6 +628,7 @@ class MainActivity : AppCompatActivity() {
         val tabs = listOf(binding.tabCapture, binding.tabAudio, binding.tabClips, binding.tabControls)
         tabs.forEachIndexed { index, button -> button.setOnClickListener { selectTab(index) } }
         binding.btnAccount.setOnClickListener { LicenseAccess.open(this) }
+        binding.btnSetup.setOnClickListener { showSetupGuide() }
         binding.btnLanguage.setOnClickListener {
             val current = if (AppLanguage.get(this) == "en") 1 else 0
             MaterialAlertDialogBuilder(this)
@@ -597,7 +640,7 @@ class MainActivity : AppCompatActivity() {
                 }.setNegativeButton(t("Đóng", "Close"), null).show()
         }
         fun visit(view: View) {
-            if (view.isFocusable) installFocusMotion(view)
+            if (view.isFocusable && (view !is ViewGroup || view.isClickable)) installFocusMotion(view)
             if (view is ViewGroup) for (i in 0 until view.childCount) visit(view.getChildAt(i))
         }
         visit(binding.root)
@@ -614,11 +657,34 @@ class MainActivity : AppCompatActivity() {
                 target.chipStrokeColor = if (focused) ColorStateList.valueOf(getColor(R.color.accent_red))
                     else getColorStateList(R.color.replay_focus_stroke)
             }
-            if (ValueAnimator.areAnimatorsEnabled()) {
-                target.animate().scaleX(if (focused) 1.025f else 1f)
-                    .scaleY(if (focused) 1.025f else 1f).setDuration(120).start()
+            if (target.tag == "clip" && target is ViewGroup) {
+                fun recolor(view: View) {
+                    if (view is TextView) view.setTextColor(getColor(if (focused) R.color.nvidia_black else if (view.tag == "clip_meta") R.color.text_secondary else R.color.text_primary))
+                    if (view is ViewGroup) for (i in 0 until view.childCount) recolor(view.getChildAt(i))
+                }
+                recolor(target)
             }
+            // Draw focus inside the control. Growing edge-aligned controls clips
+            // their outlines in tab rows, ChipGroups and scrolling clip lists.
+            target.animate().cancel()
+            val scale = if (focused) .985f else 1f
+            if (ValueAnimator.areAnimatorsEnabled()) target.animate().scaleX(scale).scaleY(scale).setDuration(120).start()
+            else { target.scaleX = scale; target.scaleY = scale }
         }
+    }
+
+    private fun showSetupGuide() {
+        if (setupDialog?.isShowing == true || isFinishing || isDestroyed) return
+        val dialog = ReplaySetupDialog(this)
+        setupDialog = dialog
+        dialog.setOnDismissListener {
+            setupDialog = null
+            if (!isFinishing && !isDestroyed) binding.btnSetup.requestFocusFromTouch()
+        }
+        dialog.show()
+        // UI-only state: never write into thor_replay_prefs or grant a permission.
+        getSharedPreferences("android_replay_ui", MODE_PRIVATE).edit()
+            .putBoolean("setup_guide_seen_v1", true).apply()
     }
 
     private fun selectTab(index: Int, animate: Boolean = true) {
@@ -627,11 +693,11 @@ class MainActivity : AppCompatActivity() {
         val tabs = listOf(binding.tabCapture, binding.tabAudio, binding.tabClips, binding.tabControls)
         sections.forEachIndexed { i, view -> view.visibility = if (i == selectedTab) View.VISIBLE else View.GONE }
         tabs.forEachIndexed { i, button ->
-            button.backgroundTintList = ColorStateList.valueOf(getColor(if (i == selectedTab) R.color.nvidia_green else R.color.nvidia_card_inner))
-            button.setTextColor(getColor(if (i == selectedTab) R.color.nvidia_black else R.color.text_primary))
+            styleButton(button, getColor(if (i == selectedTab) R.color.nvidia_green else R.color.nvidia_card_inner), getColor(if (i == selectedTab) R.color.nvidia_black else R.color.text_primary))
         }
         binding.contentScroll.scrollTo(0, 0)
         if (animate && ValueAnimator.areAnimatorsEnabled()) {
+            sections.forEach { it.animate().cancel(); it.alpha = 1f; it.translationX = 0f }
             sections[selectedTab].alpha = 0f
             sections[selectedTab].translationX = 14f
             sections[selectedTab].animate().alpha(1f).translationX(0f).setDuration(170).start()
@@ -679,11 +745,7 @@ class MainActivity : AppCompatActivity() {
         }
         val x = event.getAxisValue(MotionEvent.AXIS_X)
         val y = event.getAxisValue(MotionEvent.AXIS_Y)
-        val direction = when {
-            kotlin.math.abs(x) < .55f && kotlin.math.abs(y) < .55f -> 0
-            kotlin.math.abs(x) > kotlin.math.abs(y) -> if (x > 0) View.FOCUS_RIGHT else View.FOCUS_LEFT
-            else -> if (y > 0) View.FOCUS_DOWN else View.FOCUS_UP
-        }
+        val direction = ReplayStickDirection.resolve(x, y, stickDirection)
         if (direction == 0) {
             stickDirection = 0
             handler.removeCallbacks(stickRepeat)
@@ -711,6 +773,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        uiResumed = false
+        updateStatusPulse()
         confirmArmed = false
         confirmTarget = null
         stickDirection = 0
@@ -720,6 +784,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
+        updateStatusPulse()
+        if (hasFocus && !getSharedPreferences("android_replay_ui", MODE_PRIVATE)
+                .getBoolean("setup_guide_seen_v1", false)) {
+            binding.root.post { if (hasWindowFocus()) showSetupGuide() }
+        }
         if (!hasFocus) {
             confirmArmed = false
             confirmTarget = null
