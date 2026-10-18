@@ -17,6 +17,19 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Size
 import android.view.View
+import android.view.ViewGroup
+import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.InputDevice
+import android.animation.ValueAnimator
+import android.os.SystemClock
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.slider.Slider
+import com.google.android.material.chip.Chip
+import com.thorqol.shared.LicenseAccess
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -42,6 +55,26 @@ class MainActivity : AppCompatActivity() {
     private val thumbnailExecutor = Executors.newFixedThreadPool(2)
     private var webServer: ThorWebServer? = null
 
+    private var selectedTab = 0
+    private var confirmArmed = false
+    private var confirmTarget: View? = null
+    private var stickDirection = 0
+    private val stickRepeat = object : Runnable {
+        override fun run() {
+            if (stickDirection == 0 || isFinishing || isDestroyed) return
+            moveStickFocus(stickDirection)
+            handler.postDelayed(this, 150L)
+        }
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
+    }
+
+    private fun t(vi: String, en: String): String = AppLanguage.text(this, vi, en)
+    private fun durationSeconds(): Long = try { prefs.getLong("duration_sec", 60L) }
+        catch (_: ClassCastException) { prefs.getInt("duration_sec", 60).toLong() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -49,13 +82,27 @@ class MainActivity : AppCompatActivity() {
 
         prefs = getSharedPreferences("thor_replay_prefs", Context.MODE_PRIVATE)
 
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, binding.root).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
         setupUI()
         setupListeners()
+        setupNavigation()
+        selectTab(savedInstanceState?.getInt("tab", 0) ?: 0, false)
+        if (ValueAnimator.areAnimatorsEnabled()) {
+            binding.heroPanel.alpha = 0f
+            binding.heroPanel.translationX = -18f
+            binding.heroPanel.animate().alpha(1f).translationX(0f).setDuration(240).start()
+        }
+        binding.btnToggleService.requestFocusFromTouch()
         startPeriodicStatusCheck()
     }
 
     override fun onResume() {
         super.onResume()
+        if (!LicenseAccess.guard(this)) return
         checkAdbPermissionStatus()
         refreshClipsList()
         updateServiceUIState()
@@ -107,11 +154,11 @@ class MainActivity : AppCompatActivity() {
 
         val gameVol = prefs.getInt("volume_game", 85)
         binding.sliderGameVolume.value = gameVol.toFloat().coerceIn(0f, 150f)
-        binding.tvGameVolumeLabel.text = "Âm lượng Game: ${gameVol}%"
+        binding.tvGameVolumeLabel.text = t("Âm lượng game: ${gameVol}%", "Game volume: ${gameVol}%")
 
         val micVol = prefs.getInt("volume_mic", 150)
         binding.sliderMicVolume.value = micVol.toFloat().coerceIn(50f, 300f)
-        binding.tvMicVolumeLabel.text = "Âm lượng Micro (Voice Boost): ${micVol}%"
+        binding.tvMicVolumeLabel.text = t("Âm lượng micro: ${micVol}%", "Microphone volume: ${micVol}%")
     }
 
     private fun setupListeners() {
@@ -201,7 +248,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.sliderGameVolume.addOnChangeListener { _, value, fromUser ->
             val v = value.toInt()
-            binding.tvGameVolumeLabel.text = "Âm lượng Game: ${v}%"
+            binding.tvGameVolumeLabel.text = t("Âm lượng game: ${v}%", "Game volume: ${v}%")
             if (fromUser) {
                 prefs.edit().putInt("volume_game", v).apply()
                 sendBroadcast(Intent(ReplayService.ACTION_UPDATE_AUDIO_VOLUMES).setPackage(packageName))
@@ -210,7 +257,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.sliderMicVolume.addOnChangeListener { _, value, fromUser ->
             val v = value.toInt()
-            binding.tvMicVolumeLabel.text = "Âm lượng Micro (Voice Boost): ${v}%"
+            binding.tvMicVolumeLabel.text = t("Âm lượng micro: ${v}%", "Microphone volume: ${v}%")
             if (fromUser) {
                 prefs.edit().putInt("volume_mic", v).apply()
                 sendBroadcast(Intent(ReplayService.ACTION_UPDATE_AUDIO_VOLUMES).setPackage(packageName))
@@ -219,7 +266,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnManualRecord.setOnClickListener {
             if (!ReplayService.isRunning) {
-                Toast.makeText(this, "Vui lòng bật dịch vụ ShadowPlay trước!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, t("Bật Replay trước khi quay video.", "Start Replay before recording a video."), Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             sendBroadcast(Intent(ReplayService.ACTION_TOGGLE_MANUAL_RECORD).setPackage(packageName))
@@ -233,7 +280,7 @@ class MainActivity : AppCompatActivity() {
     private fun startReplayService() {
         if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 1003)
-            Toast.makeText(this, "Vui lòng cho phép quyền Ghi âm để thu âm thanh game!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Cho phép ghi âm để thu âm thanh game.", "Allow audio recording to capture game sound."), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -267,7 +314,7 @@ class MainActivity : AppCompatActivity() {
                 Uri.parse("package:$packageName")
             )
             startActivity(intent)
-            Toast.makeText(this, "Vui lòng cho phép quyền hiển thị nổi (Draw Overlays)", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, t("Cho phép hiển thị nút nổi CLIP.", "Allow the floating CLIP button to appear over other apps."), Toast.LENGTH_LONG).show()
         } else {
             startService(Intent(this, FloatingTriggerService::class.java))
         }
@@ -283,10 +330,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (mode == AppOpsManager.MODE_ALLOWED) {
-            binding.tvAdbStatus.text = "✓ Quyền PROJECT_MEDIA: ĐÃ KÍCH HOẠT VĨNH VIỄN"
+            binding.tvAdbStatus.text = getString(R.string.adb_status_ok)
             binding.tvAdbStatus.setTextColor(getColor(R.color.nvidia_green))
         } else {
-            binding.tvAdbStatus.text = "⚠ Cần chạy 1 lần lệnh ADB trên máy tính"
+            binding.tvAdbStatus.text = getString(R.string.adb_status_need)
             binding.tvAdbStatus.setTextColor(getColor(R.color.accent_red))
         }
     }
@@ -297,20 +344,20 @@ class MainActivity : AppCompatActivity() {
             binding.btnManualRecord.isEnabled = true
 
             if (isManual) {
-                binding.tvStatus.text = "🔴 ĐANG QUAY VIDEO LIÊN TỤC (MANUAL)"
+                binding.tvStatus.text = t("● ĐANG QUAY VIDEO", "● RECORDING VIDEO")
                 binding.tvStatus.setTextColor(getColor(R.color.accent_red))
-                binding.btnManualRecord.text = "⏹ DỪNG QUAY THỦ CÔNG"
+                binding.btnManualRecord.text = getString(R.string.btn_manual_record_stop)
                 binding.btnManualRecord.backgroundTintList = ColorStateList.valueOf(getColor(R.color.accent_red))
                 binding.btnManualRecord.setTextColor(getColor(R.color.white))
             } else {
-                binding.tvStatus.text = "● SHADOWPLAY: ĐANG GHI ĐỆM RAM"
+                binding.tvStatus.text = getString(R.string.status_running)
                 binding.tvStatus.setTextColor(getColor(R.color.nvidia_green))
-                binding.btnManualRecord.text = "🔴 QUAY DÀI THỦ CÔNG (START/STOP)"
+                binding.btnManualRecord.text = getString(R.string.btn_manual_record_start)
                 binding.btnManualRecord.backgroundTintList = ColorStateList.valueOf(getColor(R.color.nvidia_card_inner))
                 binding.btnManualRecord.setTextColor(getColor(R.color.accent_red))
             }
 
-            binding.btnToggleService.text = "TẮT SHADOWPLAY"
+            binding.btnToggleService.text = getString(R.string.btn_stop)
             binding.btnToggleService.backgroundTintList = ColorStateList.valueOf(getColor(R.color.accent_red))
             binding.btnToggleService.setTextColor(getColor(R.color.white))
             binding.btnSaveClip.isEnabled = true
@@ -318,22 +365,22 @@ class MainActivity : AppCompatActivity() {
             binding.btnSaveClip.setTextColor(getColor(R.color.nvidia_green))
 
             val mb = ReplayService.bufferSizeBytes / (1024 * 1024)
-            val duration = prefs.getLong("duration_sec", 60L)
-            binding.tvBufferStats.text = "RAM Buffer: $mb MB • Rolling $duration giây • Zero CPU overhead"
+            val duration = durationSeconds()
+            binding.tvBufferStats.text = t("RAM · $mb MB / $duration giây", "RAM · $mb MB / $duration seconds")
         } else {
-            binding.tvStatus.text = "○ SHADOWPLAY: ĐANG TẮT"
+            binding.tvStatus.text = getString(R.string.status_stopped)
             binding.tvStatus.setTextColor(getColor(R.color.text_secondary))
-            binding.btnToggleService.text = "BẬT SHADOWPLAY"
+            binding.btnToggleService.text = getString(R.string.btn_start)
             binding.btnToggleService.backgroundTintList = ColorStateList.valueOf(getColor(R.color.nvidia_green))
             binding.btnToggleService.setTextColor(getColor(R.color.nvidia_black))
             binding.btnSaveClip.isEnabled = false
             binding.btnSaveClip.backgroundTintList = ColorStateList.valueOf(getColor(R.color.nvidia_card_inner))
             binding.btnSaveClip.setTextColor(getColor(R.color.text_muted))
             binding.btnManualRecord.isEnabled = false
-            binding.btnManualRecord.text = "🔴 QUAY THỦ CÔNG"
+            binding.btnManualRecord.text = getString(R.string.btn_manual_record_start)
             binding.btnManualRecord.backgroundTintList = ColorStateList.valueOf(getColor(R.color.nvidia_card_inner))
             binding.btnManualRecord.setTextColor(getColor(R.color.text_muted))
-            binding.tvBufferStats.text = "RAM Buffer: 0 MB • Chế độ chờ"
+            binding.tvBufferStats.text = t("RAM · 0 MB / Đang chờ", "RAM · 0 MB / Standby")
         }
     }
 
@@ -349,15 +396,15 @@ class MainActivity : AppCompatActivity() {
     private fun refreshClipsList() {
         binding.layoutClipsList.removeAllViews()
         val clipsDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "ThorClips")
-        if (!clipsDir.exists()) return
+
 
         val files = clipsDir.listFiles { file -> file.extension == "mp4" }
             ?.sortedByDescending { it.lastModified() }
-            ?: return
+            ?: emptyList()
 
         if (files.isEmpty()) {
             val emptyTv = TextView(this).apply {
-                text = "(Chưa có bản lưu nào. Bấm LƯU CLIP REPLAY để tạo)"
+                text = getString(R.string.library_empty)
                 setTextColor(getColor(R.color.text_muted))
                 textSize = 12f
                 setPadding(8, 12, 8, 12)
@@ -377,9 +424,12 @@ class MainActivity : AppCompatActivity() {
                 setPadding(16, 12, 16, 12)
                 setBackgroundColor(getColor(R.color.nvidia_card_bg))
                 gravity = android.view.Gravity.CENTER_VERTICAL
-                setOnClickListener {
-                    openVideo(file)
-                }
+                isFocusable = true
+                background = getDrawable(R.drawable.replay_control_focus)
+                minimumHeight = (64 * resources.displayMetrics.density).toInt()
+                setOnClickListener { openVideo(file) }
+                contentDescription = file.name
+                installFocusMotion(this)
             }
 
             val thumbContainer = FrameLayout(this).apply {
@@ -439,7 +489,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             val metaTv = TextView(this).apply {
-                text = "${sizeMb} MB • MP4 60FPS"
+                text = "${sizeMb} MB · MP4"
                 setTextColor(getColor(R.color.text_secondary))
                 textSize = 11f
             }
@@ -469,7 +519,7 @@ class MainActivity : AppCompatActivity() {
         try {
             startActivity(intent)
         } catch (_: Exception) {
-            Toast.makeText(this, "Không có ứng dụng phát video nào", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Chưa có ứng dụng phát video.", "No video player is installed."), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -478,18 +528,18 @@ class MainActivity : AppCompatActivity() {
         if (ip.isNullOrEmpty()) {
             Toast.makeText(
                 this,
-                "Không tìm thấy IP mạng Wi-Fi cục bộ. Vui lòng kết nối Wi-Fi trên máy AYN Thor!",
+                t("Kết nối Wi-Fi để chia sẻ clip.", "Connect to Wi-Fi to share clips."),
                 Toast.LENGTH_LONG
             ).show()
             return
         }
 
         if (webServer == null) {
-            webServer = ThorWebServer(8080)
+            webServer = ThorWebServer(8080, AppLanguage.get(this) == "en")
         }
         val started = webServer?.start() ?: false
         if (!started) {
-            Toast.makeText(this, "Không thể mở Web Server (Cổng 8080 đang bận)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Không thể chia sẻ: cổng 8080 đang được dùng.", "Cannot share: port 8080 is already in use."), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -520,10 +570,162 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
         webServer?.stop()
         webServer = null
         thumbnailExecutor.shutdown()
         super.onDestroy()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("tab", selectedTab)
+        super.onSaveInstanceState(outState)
+    }
+
+    private fun setupNavigation() {
+        val tabs = listOf(binding.tabCapture, binding.tabAudio, binding.tabClips, binding.tabControls)
+        tabs.forEachIndexed { index, button -> button.setOnClickListener { selectTab(index) } }
+        binding.btnAccount.setOnClickListener { LicenseAccess.open(this) }
+        binding.btnLanguage.setOnClickListener {
+            val current = if (AppLanguage.get(this) == "en") 1 else 0
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.language)
+                .setSingleChoiceItems(arrayOf("Tiếng Việt", "English"), current) { dialog, which ->
+                    AppLanguage.set(this, if (which == 1) "en" else "vi")
+                    dialog.dismiss()
+                    recreate()
+                }.setNegativeButton(t("Đóng", "Close"), null).show()
+        }
+        fun visit(view: View) {
+            if (view.isFocusable) installFocusMotion(view)
+            if (view is ViewGroup) for (i in 0 until view.childCount) visit(view.getChildAt(i))
+        }
+        visit(binding.root)
+    }
+
+    private fun installFocusMotion(view: View) {
+        view.setOnFocusChangeListener { target, focused ->
+            if (target is MaterialButton) {
+                target.strokeWidth = ((if (focused) 3f else 1.5f) * resources.displayMetrics.density).toInt()
+                target.strokeColor = if (focused) ColorStateList.valueOf(getColor(R.color.accent_red))
+                    else getColorStateList(R.color.replay_focus_stroke)
+            }
+            if (target is Chip) {
+                target.chipStrokeColor = if (focused) ColorStateList.valueOf(getColor(R.color.accent_red))
+                    else getColorStateList(R.color.replay_focus_stroke)
+            }
+            if (ValueAnimator.areAnimatorsEnabled()) {
+                target.animate().scaleX(if (focused) 1.025f else 1f)
+                    .scaleY(if (focused) 1.025f else 1f).setDuration(120).start()
+            }
+        }
+    }
+
+    private fun selectTab(index: Int, animate: Boolean = true) {
+        selectedTab = index.coerceIn(0, 3)
+        val sections = listOf(binding.sectionCapture, binding.sectionAudio, binding.sectionClips, binding.sectionControls)
+        val tabs = listOf(binding.tabCapture, binding.tabAudio, binding.tabClips, binding.tabControls)
+        sections.forEachIndexed { i, view -> view.visibility = if (i == selectedTab) View.VISIBLE else View.GONE }
+        tabs.forEachIndexed { i, button ->
+            button.backgroundTintList = ColorStateList.valueOf(getColor(if (i == selectedTab) R.color.nvidia_green else R.color.nvidia_card_inner))
+            button.setTextColor(getColor(if (i == selectedTab) R.color.nvidia_black else R.color.text_primary))
+        }
+        binding.contentScroll.scrollTo(0, 0)
+        if (animate && ValueAnimator.areAnimatorsEnabled()) {
+            sections[selectedTab].alpha = 0f
+            sections[selectedTab].translationX = 14f
+            sections[selectedTab].animate().alpha(1f).translationX(0f).setDuration(170).start()
+        }
+        if (selectedTab == 2) refreshClipsList()
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_BUTTON_A -> {
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                    if (currentFocus == null) binding.btnToggleService.requestFocusFromTouch()
+                    confirmArmed = true
+                    confirmTarget = currentFocus
+                }
+                if (event.action == KeyEvent.ACTION_UP) {
+                    val target = confirmTarget
+                    val click = confirmArmed && !event.isCanceled && target === currentFocus
+                    confirmArmed = false
+                    confirmTarget = null
+                    if (click) target?.takeIf { it.isEnabled && it.isShown }?.performClick()
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 -> {
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                    selectTab((selectedTab + if (event.keyCode == KeyEvent.KEYCODE_BUTTON_R1) 1 else 3) % 4)
+                    listOf(binding.tabCapture, binding.tabAudio, binding.tabClips, binding.tabControls)[selectedTab].requestFocusFromTouch()
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_B -> {
+                if (event.action == KeyEvent.ACTION_UP) {
+                    if (selectedTab != 0) selectTab(0) else finish()
+                }
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        if (event.action != MotionEvent.ACTION_MOVE || !event.isFromSource(InputDevice.SOURCE_JOYSTICK)) {
+            return super.dispatchGenericMotionEvent(event)
+        }
+        val x = event.getAxisValue(MotionEvent.AXIS_X)
+        val y = event.getAxisValue(MotionEvent.AXIS_Y)
+        val direction = when {
+            kotlin.math.abs(x) < .55f && kotlin.math.abs(y) < .55f -> 0
+            kotlin.math.abs(x) > kotlin.math.abs(y) -> if (x > 0) View.FOCUS_RIGHT else View.FOCUS_LEFT
+            else -> if (y > 0) View.FOCUS_DOWN else View.FOCUS_UP
+        }
+        if (direction == 0) {
+            stickDirection = 0
+            handler.removeCallbacks(stickRepeat)
+            return true
+        }
+        if (direction != stickDirection) {
+            handler.removeCallbacks(stickRepeat)
+            stickDirection = direction
+            moveStickFocus(direction)
+            handler.postDelayed(stickRepeat, 330L)
+        }
+        return true
+    }
+
+    private fun moveStickFocus(direction: Int) {
+            val focus = currentFocus
+            // Sliders consume horizontal input instead of jumping to another control.
+            if (focus is Slider && (direction == View.FOCUS_LEFT || direction == View.FOCUS_RIGHT)) {
+                focus.value = (focus.value + (if (direction == View.FOCUS_RIGHT) 1 else -1) * focus.stepSize)
+                    .coerceIn(focus.valueFrom, focus.valueTo)
+                val key = if (focus === binding.sliderGameVolume) "volume_game" else "volume_mic"
+                prefs.edit().putInt(key, focus.value.toInt()).apply()
+                sendBroadcast(Intent(ReplayService.ACTION_UPDATE_AUDIO_VOLUMES).setPackage(packageName))
+            } else focus?.focusSearch(direction)?.requestFocusFromTouch() ?: binding.btnToggleService.requestFocusFromTouch()
+    }
+
+    override fun onPause() {
+        confirmArmed = false
+        confirmTarget = null
+        stickDirection = 0
+        handler.removeCallbacks(stickRepeat)
+        super.onPause()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus) {
+            confirmArmed = false
+            confirmTarget = null
+            stickDirection = 0
+            handler.removeCallbacks(stickRepeat)
+        }
     }
 }
 

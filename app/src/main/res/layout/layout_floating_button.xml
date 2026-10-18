@@ -12,7 +12,7 @@
         android:paddingTop="8dp"
         android:paddingEnd="14dp"
         android:paddingBottom="8dp"
-        android:text="SHADOWPLAY"
+        android:text="CLIP"
         android:textColor="@color/nvidia_green"
         android:textStyle="bold"
         android:textSize="12sp"

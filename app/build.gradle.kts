@@ -10,12 +10,18 @@ android {
         applicationId = "com.thor.instantreplay"
         minSdk = 29
         targetSdk = 34
-        versionCode = 8
-        versionName = "2.6-NVIDIA"
+        versionCode = 9
+        versionName = "2.7.0"
+        testInstrumentationRunner = "com.thor.instantreplay.ReplayUiInstrumentation"
+    }
+
+    signingConfigs.getByName("debug") {
+        System.getenv("KHOGAME_DEBUG_KEYSTORE")?.let { storeFile = file(it) }
     }
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

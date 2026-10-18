@@ -12,7 +12,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
-class ThorWebServer(private val port: Int = 8080) {
+class ThorWebServer(private val port: Int = 8080, private val english: Boolean = false) {
+    private fun t(vi: String, en: String) = if (english) en else vi
 
     companion object {
         private const val TAG = "ThorWebServer"
@@ -170,33 +171,33 @@ class ThorWebServer(private val port: Int = 8080) {
         val sb = StringBuilder()
         sb.append("<!DOCTYPE html><html><head><meta charset='UTF-8'>")
         sb.append("<meta name='viewport' content='width=device-width, initial-scale=1.0'>")
-        sb.append("<title>AYN Thor Replay • NVIDIA ShadowPlay</title>")
+        sb.append("<title>Android Replay</title>")
         sb.append("<style>")
-        sb.append("body { background: #0c0d0e; color: #e1e3e6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; }")
-        sb.append(".header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 2px solid #76b900; margin-bottom: 24px; }")
+        sb.append("body { background: #10151b; color: #e1e3e6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; }")
+        sb.append(".header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 2px solid #dcff30; margin-bottom: 24px; }")
         sb.append(".logo { font-size: 22px; font-weight: 800; letter-spacing: 1px; color: #fff; }")
-        sb.append(".logo span { color: #76b900; }")
-        sb.append(".badge { background: #76b900; color: #000; font-weight: bold; font-size: 11px; padding: 4px 8px; border-radius: 4px; }")
-        sb.append(".clip-card { background: #16181b; border: 1px solid #282b30; border-radius: 10px; padding: 16px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }")
+        sb.append(".logo span { color: #dcff30; }")
+        sb.append(".badge { background: #dcff30; color: #000; font-weight: bold; font-size: 11px; padding: 4px 8px; border-radius: 4px; }")
+        sb.append(".clip-card { background: #1b202c; border: 1px solid #29313f; border-radius: 10px; padding: 16px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }")
         sb.append(".clip-info { display: flex; flex-direction: column; }")
         sb.append(".clip-name { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 6px; }")
         sb.append(".clip-meta { font-size: 13px; color: #8e9297; }")
         sb.append(".btn-group { display: flex; gap: 8px; }")
         sb.append(".btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: bold; text-decoration: none; cursor: pointer; border: none; display: inline-flex; align-items: center; }")
-        sb.append(".btn-play { background: #282b30; color: #76b900; border: 1px solid #76b900; }")
-        sb.append(".btn-dl { background: #76b900; color: #000; }")
+        sb.append(".btn-play { background: #29313f; color: #dcff30; border: 1px solid #dcff30; }")
+        sb.append(".btn-dl { background: #dcff30; color: #000; }")
         sb.append(".btn:hover { opacity: 0.85; }")
         sb.append(".empty { text-align: center; color: #8e9297; padding: 40px; }")
         sb.append("video { width: 100%; max-height: 480px; border-radius: 8px; background: #000; margin-top: 10px; }")
         sb.append("</style></head><body>")
 
         sb.append("<div class='header'>")
-        sb.append("<div class='logo'><span>NVIDIA</span> SHADOWPLAY</div>")
+        sb.append("<div class='logo'><span>ANDROID</span> REPLAY</div>")
         sb.append("<div class='badge'>AYN THOR • WI-FI SHARE</div>")
         sb.append("</div>")
 
         if (clips.isEmpty()) {
-            sb.append("<div class='empty'>Chưa có video clip nào được lưu trong máy AYN Thor.</div>")
+            sb.append("<div class='empty'>" + t("Chưa có clip đã lưu.", "No saved clips yet.") + "</div>")
         } else {
             sb.append("<div>")
             val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
@@ -208,11 +209,11 @@ class ThorWebServer(private val port: Int = 8080) {
                 sb.append("<div class='clip-card'>")
                 sb.append("<div class='clip-info'>")
                 sb.append("<div class='clip-name'>${clip.name}</div>")
-                sb.append("<div class='clip-meta'>Dung lượng: $sizeMb • Thời gian: $timeStr</div>")
+                sb.append("<div class='clip-meta'>$sizeMb · $timeStr</div>")
                 sb.append("</div>")
                 sb.append("<div class='btn-group'>")
-                sb.append("<a class='btn btn-play' href='/video?file=${safeName}' target='_blank'>▶ Xem</a>")
-                sb.append("<a class='btn btn-dl' href='/download?file=${safeName}'>⬇ Tải về</a>")
+                sb.append("<a class='btn btn-play' href='/video?file=${safeName}' target='_blank'>▶ ${t("Xem", "Watch")}</a>")
+                sb.append("<a class='btn btn-dl' href='/download?file=${safeName}'>⬇ ${t("Tải về", "Download")}</a>")
                 sb.append("</div>")
                 sb.append("</div>")
             }

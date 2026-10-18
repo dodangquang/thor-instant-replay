@@ -5,6 +5,10 @@
         <item name="colorPrimaryVariant">@color/nvidia_green_dark</item>
         <item name="colorOnPrimary">@color/nvidia_black</item>
         <item name="colorSecondary">@color/nvidia_green_glow</item>
+        <item name="colorSurface">@color/nvidia_card_bg</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="android:colorBackground">@color/nvidia_dark_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
         <item name="android:statusBarColor">@color/nvidia_black</item>
         <item name="android:navigationBarColor">@color/nvidia_black</item>
         <item name="android:windowBackground">@color/nvidia_dark_bg</item>

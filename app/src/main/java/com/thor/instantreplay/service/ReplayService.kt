@@ -23,6 +23,8 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.thor.instantreplay.MainActivity
+import com.thor.instantreplay.AppLanguage
+import com.thorqol.shared.LicenseAccess
 import com.thor.instantreplay.buffer.CircularMediaBuffer
 import com.thor.instantreplay.encoder.AudioEncoder
 import com.thor.instantreplay.encoder.DualScreenHelper
@@ -36,6 +38,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 class ReplayService : Service() {
+    private fun t(vi: String, en: String) = AppLanguage.text(this, vi, en)
 
     companion object {
         private const val TAG = "ReplayService"
@@ -83,6 +86,10 @@ class ReplayService : Service() {
 
     private val actionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != ACTION_STOP && !LicenseAccess.canUse(this@ReplayService)) {
+                stopSelf()
+                return
+            }
             when (intent?.action) {
                 ACTION_SAVE_CLIP -> saveCurrentReplay()
                 ACTION_STOP -> stopSelf()
@@ -119,7 +126,7 @@ class ReplayService : Service() {
         screenEncoder?.pause()
         audioEncoder?.pause()
         val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.notify(NOTIFICATION_ID, buildNotification("ShadowPlay tạm dừng (Màn hình tắt • Doze mode)"))
+        notificationManager.notify(NOTIFICATION_ID, buildNotification(t("Replay tạm dừng khi tắt màn hình", "Replay paused while the screen is off")))
     }
 
     private fun resumeShadowPlay() {
@@ -129,7 +136,7 @@ class ReplayService : Service() {
         audioEncoder?.resume()
         val duration = circularBuffer.bufferDurationSeconds
         val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.notify(NOTIFICATION_ID, buildNotification("NVIDIA ShadowPlay active ($duration giây đệm)..."))
+        notificationManager.notify(NOTIFICATION_ID, buildNotification(t("Đang ghi đệm $duration giây", "Buffering $duration seconds")))
     }
 
     override fun onCreate() {
@@ -159,6 +166,10 @@ class ReplayService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action ?: ACTION_START
+        if (action != ACTION_STOP && !LicenseAccess.canUse(this)) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
 
         when (action) {
             ACTION_STOP -> {
@@ -193,7 +204,7 @@ class ReplayService : Service() {
                 val recordMic = intent?.getBooleanExtra(EXTRA_RECORD_MIC, true) ?: true
                 val enableNoiseFilter = intent?.getBooleanExtra(EXTRA_NOISE_FILTER, true) ?: true
 
-                startForeground(NOTIFICATION_ID, buildNotification("NVIDIA ShadowPlay active ($durationSec giây đệm)..."))
+                startForeground(NOTIFICATION_ID, buildNotification(t("Đang ghi đệm $durationSec giây", "Buffering $durationSec seconds")))
 
                 if (resultData != null && resultCode != 0) {
                     val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
@@ -292,7 +303,7 @@ class ReplayService : Service() {
 
     fun startManualRecording() {
         if (!isRunning) {
-            Toast.makeText(this, "Vui lòng bật dịch vụ ShadowPlay trước khi quay video!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Bật Replay trước khi quay video.", "Start Replay before recording video."), Toast.LENGTH_SHORT).show()
             return
         }
         if (isManualRecording) return
@@ -307,11 +318,11 @@ class ReplayService : Service() {
             isManualRecording = true
             manualRecordStartTimeMs = System.currentTimeMillis()
             vibrateFeedback()
-            Toast.makeText(this, "🔴 BẮT ĐẦU QUAY VIDEO THỦ CÔNG...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Đã bắt đầu quay video", "Video recording started"), Toast.LENGTH_SHORT).show()
             val nm = getSystemService(NotificationManager::class.java)
-            nm.notify(NOTIFICATION_ID, buildNotification("🔴 ĐANG QUAY VIDEO LIÊN TỤC..."))
+            nm.notify(NOTIFICATION_ID, buildNotification(t("Đang quay video liên tục", "Recording continuous video")))
         } else {
-            Toast.makeText(this, "Chưa sẵn sàng: Đang đợi khung hình đầu tiên", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Đang chờ khung hình đầu tiên", "Waiting for the first video frame"), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -325,11 +336,11 @@ class ReplayService : Service() {
             enforceStorageQuota(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "ThorClips"))
             vibrateFeedback()
             playChimeIfEnabled()
-            Toast.makeText(this, "✓ ĐÃ DỪNG & LƯU VIDEO THỦ CÔNG", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Đã dừng và lưu video", "Recording stopped and video saved"), Toast.LENGTH_SHORT).show()
             val nm = getSystemService(NotificationManager::class.java)
-            nm.notify(NOTIFICATION_ID, buildNotification("NVIDIA ShadowPlay active"))
+            nm.notify(NOTIFICATION_ID, buildNotification(t("Đang ghi đệm Replay", "Replay is buffering")))
         } else {
-            Toast.makeText(this, "Lỗi khi lưu video thủ công", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, t("Không thể lưu video", "Could not save the video"), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -365,11 +376,11 @@ class ReplayService : Service() {
                     mainHandler.post {
                         vibrateFeedback()
                         playChimeIfEnabled()
-                        Toast.makeText(this, "Replay saved", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, t("Đã lưu clip Replay", "Replay clip saved"), Toast.LENGTH_SHORT).show()
                     }
                 } else {
                     mainHandler.post {
-                        Toast.makeText(this, "Chưa đủ dữ liệu trong buffer để lưu clip", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, t("Chưa đủ dữ liệu để lưu clip", "Not enough buffered video to save a clip"), Toast.LENGTH_SHORT).show()
                     }
                 }
             } finally {
@@ -429,12 +440,12 @@ class ReplayService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("NVIDIA ShadowPlay • AYN Thor")
+            .setContentTitle("Android Replay")
             .setContentText(statusText)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(openAppIntent)
-            .addAction(android.R.drawable.ic_menu_save, "Lưu Clip", saveClipIntent)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dừng", stopIntent)
+            .addAction(android.R.drawable.ic_menu_save, t("Lưu clip", "Save clip"), saveClipIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, t("Dừng", "Stop"), stopIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
@@ -444,10 +455,10 @@ class ReplayService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "NVIDIA ShadowPlay Service",
+                "Android Replay",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Chạy ngầm bộ đệm video xoay vòng trong RAM"
+                description = t("Ghi đệm video để lưu khoảnh khắc vừa chơi", "Buffer video to save a recent moment")
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)

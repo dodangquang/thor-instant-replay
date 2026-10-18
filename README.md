@@ -1,148 +1,55 @@
-# Thor Instant Replay (AYN Thor Edition - NVIDIA Theme)
+# Android Replay 2.7.0
 
-<p align="center">
-  <img src="docs/screenshots/scr_main.png" width="45%" alt="Main Screen"/>
-  <img src="docs/screenshots/scr_mixer.png" width="45%" alt="Audio Mixer"/>
-</p>
+Android Replay lưu khoảnh khắc vừa chơi và quay video trên Android. Đây là tên hiển thị mới của Thor Instant Replay; package `com.thor.instantreplay`, dữ liệu và các action tích hợp cũ được giữ nguyên.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Platform-Android_10+-brightgreen.svg" alt="Platform"/>
-  <img src="https://img.shields.io/badge/Device-AYN_Thor_Dual--Screen-76B900.svg" alt="AYN Thor"/>
-  <img src="https://img.shields.io/badge/Language-Kotlin-orange.svg" alt="Kotlin"/>
-  <img src="https://img.shields.io/badge/Hardware_Encoder-Qualcomm_VPU-blue.svg" alt="Qualcomm VPU"/>
-  <img src="https://img.shields.io/badge/Version-v2.6--NVIDIA-success.svg" alt="Version"/>
-  <img src="https://img.shields.io/badge/License-Apache_2.0-lightgrey.svg" alt="License"/>
-</p>
+![Android Replay tiếng Việt](docs/screenshots/android-replay-main-vi.png)
 
-Ứng dụng quay màn hình Rolling RAM Buffer phong cách **NVIDIA GeForce ShadowPlay** tối ưu riêng cho máy chơi game cầm tay **AYN Thor** (2 màn hình, Snapdragon 8 Gen 2 / 865, Android 13).
+![Android Replay English](docs/screenshots/android-replay-main-en.png)
 
----
+## Chức năng
 
-## 🌟 Tính Năng Nổi Bật (Key Features - v2.6 NVIDIA Edition)
+- Ghi video màn hình chính vào bộ đệm RAM, lưu lại 30 / 60 / 120 giây vừa qua thành MP4.
+- Bắt đầu / dừng quay video dài và lưu vào `Movies/ThorClips`.
+- Chọn 720p hoặc 1080p; mã hóa video bằng phần cứng, cấu hình mục tiêu 60 FPS.
+- Trộn âm thanh game với micro, chỉnh âm lượng riêng và bật lọc ồn micro.
+- Lưu clip bằng giữ HOME 3 giây, L3 + R3 hoặc nút nổi CLIP khi đã bật dịch vụ Hỗ trợ tiếp cận.
+- Xem clip gần đây và chia sẻ qua mã QR / địa chỉ Wi-Fi để thiết bị cùng mạng xem, tải clip.
+- Giới hạn lưu 30 / 50 clip hoặc không giới hạn; tự xóa clip cũ nhất khi vượt mức đã chọn.
+- Giao diện ngang điều khiển bằng D-pad / cần trái; A kích hoạt khi nhả, LB / RB đổi mục. Tiếng Việt và English có thể chọn trong app.
 
-### 1. Bộ Đệm Vòng RAM Xoay Vòng (Instant Replay Rolling Buffer)
-- Hoạt động như **NVIDIA GeForce ShadowPlay** trên PC: Luôn ghi hình vào bộ đệm RAM xoay vòng (tùy chỉnh từ 30s đến 300s).
-- Khi có pha highlight hay khoảnh khắc xuất thần trong game, chỉ cần bấm **Lưu Clip** hoặc giữ phím cứng để trích xuất video về máy ngay lập tức mà không cần quay liên tục gây tốn dung lượng bộ nhớ.
+Video được ghi từ màn hình chính. Ghép hai màn hình chưa được triển khai trong nguồn hiện tại, vì vậy bản này không hiển thị lựa chọn ghép màn hình. Android yêu cầu quyền ghi hình / ghi âm; một số ứng dụng có thể chặn thu âm thanh nội bộ. Hiệu năng thực tế phụ thuộc thiết bị và game.
 
-### 2. Bộ Trộn Âm Thanh & Khuếch Đại Giọng Nói (Audio Mixer & Voice Boost)
-- **Voice Boost (0% - 300%)**: Tăng âm lượng Micro thu âm trên máy cầm tay (vốn cách xa miệng 30-40cm) giúp giọng bình luận to, rõ ràng và ấm áp.
-- **Game Volume (0% - 150%)**: Tùy chỉnh cân đối âm lượng nội bộ của game.
-- **Thuật toán Soft-Limiter Saturation**: Tự động nén âm dải động (Dynamic Range Compression) chống hiện tượng vỡ tiếng (audio clipping/distortion) khi reo hò hoặc khi game có âm thanh cháy nổ lớn.
+## English
 
-### 3. Chế Độ Quay Dài Thủ Công (Manual Continuous Recording)
-- Thêm nút chuyển đổi **🔴 BẮT ĐẦU QUAY DÀI** / **⏹ DỪNG QUAY THỦ CÔNG**.
-- **Cơ chế ghi trực tiếp (Direct-to-Disk Muxing)**: Stream từng frame video H.264/H.265 trực tiếp xuống bộ nhớ flash (`/sdcard/Movies/ThorClips/Record_*.mp4`), **hoàn toàn không tốn thêm 1 MB RAM nào** của bộ đệm vòng. Bạn có thể quay video game dài 1 tiếng, 2 tiếng tùy ý.
+- Save the previous 30 / 60 / 120 seconds of main-display video from a RAM replay buffer to MP4.
+- Start / stop continuous recording to `Movies/ThorClips`.
+- Choose 720p or 1080p, hardware video encoding with a target of 60 FPS.
+- Mix game and microphone audio; adjust their levels separately and enable microphone noise filtering.
+- Save using a 3-second HOME hold, L3 + R3, or the floating CLIP button with the accessibility service enabled.
+- Browse recent clips and share them over local Wi-Fi using a QR code / address.
+- Keep 30 / 50 clips or choose unlimited; the oldest clips are deleted automatically when the selected limit is exceeded.
+- Landscape UI with D-pad / left-stick controls and Vietnamese / English selection.
 
-### 4. Âm Báo "Ting" Pha Lê (Crystal Bell Chime)
-- Khi bấm lưu clip Instant Replay hoặc dừng quay dài, máy phát ra một âm báo "Ting" pha lê (hòa âm nốt E6 + E7 phai dần) phong cách Nintendo Switch / NVIDIA ShadowPlay.
-- Giúp người chơi nhận biết clip đã được ghi thành công vào máy mà không cần rời mắt khỏi trận đấu.
-- Tổng hợp trực tiếp qua `AudioTrack` với độ trễ 0ms, không cần file nhạc ngoài và không ngắt âm thanh game.
+Main-display capture only; dual-screen stitching is not implemented in the current encoder. Some apps block internal audio capture.
 
-### 5. Hỗ Trợ 2 Màn Hình Ghép (Dual-Screen Top & Bottom Stitching)
-- Nhận diện trực tiếp 2 màn hình vật lý của AYN Thor:
-  - Màn hình chính (Top Display 0): 1080p
-  - Màn hình phụ (Bottom Display 4): 1080x1240
-- Tùy chọn xuất video ghép liền mạch (Vertical Stitch 1080 x 2320) hoặc chỉ quay màn hình chính.
+## Build
 
-### 6. Phím Tắt Phần Cứng Tiện Lợi (Hardware HOME Trigger)
-- Đè phím cứng **HOME** trong 5 giây để kích hoạt lưu clip tức thì kèm 2 nhịp rung phản hồi Haptic.
-- Nhả phím trước 5 giây: Giữ nguyên tính năng tráo 2 màn hình (Display Swap sau 0.5s) của ứng dụng **Thor Wayfinder** mà không hề xung đột.
+JDK 17, Android SDK 35, Gradle 9.4.1 and AGP 9.2.1. AGP provides built-in Kotlin compilation. Do not add a second Kotlin Android plugin.
 
-### 7. Tối Ưu Hóa Pin & Chế Độ Ngủ Sâu (Doze Mode / Deep Sleep Optimization)
-- Tự động dừng (`stop`) và giải phóng hoàn toàn (`release`) luồng `AudioRecord` khi màn hình tắt (`Screen OFF`), triệt tiêu hoàn toàn wakelock `AudioIn`.
-- Khi bật màn hình lại (`Screen ON`), luồng audio tự động hồi sinh mượt mà. Đảm bảo máy vào Deep Sleep tiết kiệm 100% pin khi gập máy / tắt màn hình.
-
-### 8. Chia Sẻ Clip Siêu Tốc Qua Wi-Fi Nội Bộ (Local Web Server & QR Code)
-- Tích hợp sẵn máy chủ HTTP mini (Port 8080).
-- Hiển thị mã QR trực tiếp trên màn hình phụ. Quét QR bằng điện thoại hoặc gõ IP trên PC để duyệt và tải clip tốc độ cao qua mạng LAN.
-
----
-
-## 🛠️ Yêu Cầu Cấp Quyền Qua ADB (One-Time Setup)
-
-Do Android giới hạn việc quay màn hình ngầm và bắt âm thanh nội bộ, bạn cần cấp các quyền sau qua lệnh ADB một lần duy nhất:
-
-```bash
-# Cấp quyền ghi âm nội bộ
-adb shell pm grant com.thor.instantreplay android.permission.RECORD_AUDIO
-
-# Cấp quyền chụp màn hình ngầm
-adb shell appops set com.thor.instantreplay PROJECT_MEDIA allow
-
-# Cấp quyền vẽ cửa sổ nổi HUD
-adb shell appops set com.thor.instantreplay SYSTEM_ALERT_WINDOW allow
-
-# Bỏ qua tối ưu hóa pin (tránh bị hệ thống kill ngầm)
-adb shell dumpsys deviceidle whitelist +com.thor.instantreplay
-
-# Bật dịch vụ Accessibility để bắt sự kiện giữ phím HOME 5s:
-adb shell settings put secure enabled_accessibility_services com.thor.instantreplay/.service.ThorKeyTriggerService:com.thorwayfinder.app/.ForegroundAppService
-adb shell settings put secure accessibility_enabled 1
+```powershell
+. E:\Codex\Viet-Hoa-PC\environment.ps1
+$env:GRADLE_USER_HOME='E:\DevTools\Gradle\UserHome'
+$env:ANDROID_USER_HOME='E:\DevTools\Android\UserHome'
+$env:KHOGAME_DEBUG_KEYSTORE='E:\DevTools\Android\UserHome\debug.keystore'
+.\gradlew.bat --no-daemon :app:assembleRelease :app:assembleDebugAndroidTest
 ```
 
----
+The release uses the existing signing identity so it can update the installed app without deleting data. Signing keys are external to the repository and must not be published. APK: `app/build/outputs/apk/release/app-release.apk`.
 
-## 🏗️ Hướng Dẫn Biên Dịch (Build from Source)
+`AppLanguage.get(context)` / `set(context,"vi"|"en")` / `wrap(context)` are available to Java and Kotlin. The language is kept in `android_replay_ui.language`, and setting it also synchronizes `thorqol_ui.language` for the combo account screen. Existing capture preferences remain in `thor_replay_prefs`.
 
-### Yêu cầu:
-- JDK 17
-- Android SDK (API 35, Build Tools 35.0.0)
+Mục Tài khoản đã tích hợp giao diện dùng chung cho combo. Cấu hình hiện tại là preview: chưa kết nối máy chủ / xác nhận thanh toán và chưa bật khóa trả phí. Không có đường đăng nhập giả hoặc tự xác nhận đã mua. The original source did not include an online APK updater; the update channel still needs a separate implementation before distribution through in-app updates.
 
-### Lệnh build:
-```bash
-# Clone repository
-git clone https://github.com/dodangquang/thor-instant-replay.git
-cd thor-instant-replay
+## License
 
-# Biên dịch Debug APK
-./gradlew assembleDebug
-
-# Biên dịch Release APK
-./gradlew assembleRelease
-```
-File APK sau khi build sẽ nằm tại: `app/build/outputs/apk/release/app-release-unsigned.apk` hoặc `app/build/outputs/apk/debug/app-debug.apk`.
-
----
-
-## 📁 Cấu Trúc Mã Nguồn
-
-```
-thor-instant-replay/
-├── app/
-│   ├── build.gradle.kts
-│   ├── proguard-rules.pro
-│   └── src/main/
-│       ├── AndroidManifest.xml
-│       ├── java/com/thor/instantreplay/
-│       │   ├── MainActivity.kt               # Giao diện điều khiển NVIDIA HUD & Audio Mixer
-│       │   ├── TransparentPermissionActivity.kt # Activity trong suốt xin quyền MediaProjection
-│       │   ├── buffer/CircularMediaBuffer.kt # Bộ đệm RAM xoay vòng & ghi đĩa trực tiếp
-│       │   ├── encoder/
-│       │   │   ├── ScreenEncoder.kt          # Bộ mã hóa Qualcomm VPU Hardware Acceleration
-│       │   │   ├── AudioEncoder.kt           # Bộ thu & trộn âm thanh Game + Micro
-│       │   │   ├── OpenSourceNoiseFilter.kt  # Bộ lọc nhiễu & Soft-Limiter chống vỡ tiếng
-│       │   │   └── DualScreenHelper.kt       # Tính toán tỷ lệ ghép 2 màn hình
-│       │   ├── service/
-│       │   │   ├── ReplayService.kt          # Foreground Service quản lý chu kỳ sống
-│       │   │   ├── ThorKeyTriggerService.kt  # Bắt phím cứng HOME 5 giây & Haptic feedback
-│       │   │   ├── SaveClipReceiver.kt       # BroadcastReceiver nhận lệnh lưu clip
-│       │   │   └── BootReceiver.kt           # Tự kích hoạt lại dịch vụ khi khởi động máy
-│       │   ├── share/
-│       │   │   ├── ThorWebServer.kt          # Web server HTTP nội bộ chia sẻ clip
-│       │   │   └── QrCodeHelper.kt           # Tạo mã QR kết nối nhanh
-│       │   └── util/
-│       │       └── AudioChimeHelper.kt       # Tổng hợp âm báo "Ting" pha lê E6/E7
-│       └── res/
-│           ├── layout/activity_main.xml      # Layout Dark Gaming NVIDIA Neon
-│           └── values/                       # Colors, Strings, Themes
-├── docs/screenshots/                         # Hình ảnh giao diện thực tế
-├── build.gradle.kts
-├── settings.gradle.kts
-└── README.md
-```
-
----
-
-## 📄 License
-Phát hành theo giấy phép [Apache License 2.0](LICENSE).
-Tương thích hoàn hảo với thiết bị AYN Thor và hệ sinh thái Thor Wayfinder.
+[Apache License 2.0](LICENSE). The original package, service action names, preference file and `Movies/ThorClips` directory are retained for upgrade compatibility.

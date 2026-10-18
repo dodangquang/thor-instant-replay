@@ -1,0 +1,8 @@
+{
+  "apiBase": "",
+  "keyId": "",
+  "publicKeySpki": "",
+  "shopUrl": "https://ko-fi.com/thorqol/shop",
+  "enforce": false,
+  "state": "preview-awaiting-hosting-email-and-payment-validation"
+}
