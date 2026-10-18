@@ -16,7 +16,7 @@ final class ControllerDialog extends Dialog {
         if(event.getAction()==KeyEvent.ACTION_DOWN&&event.getRepeatCount()==0){held=true;armed=getCurrentFocus();}
         if(event.getAction()==KeyEvent.ACTION_UP){View target=armed;boolean click=held&&!event.isCanceled()&&target!=null&&target==getCurrentFocus();held=false;armed=null;if(click&&target.isEnabled())target.performClick();}return true;}
         if(key==KeyEvent.KEYCODE_BUTTON_B){if(event.getAction()==KeyEvent.ACTION_UP&&!event.isCanceled())cancel();return true;}return super.dispatchKeyEvent(event);}
-    private void move(int key){long now=SystemClock.uptimeMillis();super.dispatchKeyEvent(new KeyEvent(now,now,KeyEvent.ACTION_DOWN,key,0));super.dispatchKeyEvent(new KeyEvent(now,now,KeyEvent.ACTION_UP,key,0));}
+    private void move(int key){View current=getCurrentFocus();if(current==null)return;int direction=key==21?View.FOCUS_LEFT:key==22?View.FOCUS_RIGHT:key==19?View.FOCUS_UP:View.FOCUS_DOWN;View target=current.focusSearch(direction);if(target!=null)target.requestFocusFromTouch();}
     @Override public boolean onGenericMotionEvent(MotionEvent e){if(e.getAction()!=MotionEvent.ACTION_MOVE||!e.isFromSource(InputDevice.SOURCE_JOYSTICK))return super.onGenericMotionEvent(e);float x=e.getAxisValue(MotionEvent.AXIS_X),y=e.getAxisValue(MotionEvent.AXIS_Y),m=Math.max(Math.abs(x),Math.abs(y));int value=direction;
         if(m<.35f)value=0;else if(m>=.55f)value=Math.abs(x)>Math.abs(y)?(x<0?21:22):(y<0?19:20);
         if(value!=direction){handler.removeCallbacks(repeat);direction=value;if(value!=0){move(value);next=SystemClock.uptimeMillis()+380;handler.postDelayed(repeat,20);}}return true;}
