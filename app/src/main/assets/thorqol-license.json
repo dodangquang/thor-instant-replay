@@ -2,7 +2,7 @@
   "apiBase": "",
   "keyId": "",
   "publicKeySpki": "",
-  "shopUrl": "https://ko-fi.com/thorqol/shop",
+  "shopUrl": "https://payhip.com/b/jSaMc",
   "enforce": false,
-  "state": "preview-awaiting-hosting-email-and-payment-validation"
+  "state": "preview-awaiting-payment-validation"
 }

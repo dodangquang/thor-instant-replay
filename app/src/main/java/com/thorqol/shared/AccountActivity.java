@@ -22,7 +22,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import org.json.*;
 
-/** Native controller/touch account UI; no Ko-fi password, embedded browser login or test bypass. */
+/** Native controller/touch account UI; no store account password, embedded browser login or test bypass. */
 public final class AccountActivity extends Activity {
     static final int BG=0xff102f3b,PANEL=0xff211f30,LIME=0xffe4f43c,PINK=0xffff4795,WHITE=0xfff7ffff,MUTED=0xffb4ccd0;
     final ExecutorService worker=Executors.newSingleThreadExecutor();final Handler ui=new Handler(Looper.getMainLooper());
@@ -62,18 +62,18 @@ public final class AccountActivity extends Activity {
         boolean ready=config!=null&&config.ready()&&!deviceKey.isEmpty();
         if(!ready){label(t("ĐANG CHUẨN BỊ MỞ BÁN","PREPARING FOR LAUNCH"));note(t("Máy chủ tài khoản và xác nhận thanh toán chưa được kết nối. Bản này vẫn dùng các chức năng hiện có; chưa bật khóa trả phí.","The account server and payment verification are not connected yet. Existing app features remain available; paid access is not enabled."));
             label(t("COMBO 3 ỨNG DỤNG","3-APP COMBO"));note("Việt Hóa PC · Emu Game Store · Android Replay");note(t("25 USD một lần. Một tài khoản, tối đa 2 thiết bị cho cả combo. Cài cả ba app trên cùng một thiết bị chỉ tính là 1 máy.","USD 25 once. One account, up to 2 devices across the bundle. All three apps on one device use one slot."));
-            note(t("Đăng nhập sẽ dùng email đã thanh toán Ko-fi, xác thực bằng mã email; không nhập mật khẩu Ko-fi vào app.","Sign-in will use the email from your Ko-fi purchase, verified by an email code. Do not enter your Ko-fi password in the app."));
+            note(t("Đăng nhập bằng email đã mua combo, xác thực bằng mã gửi qua email. Không nhập mật khẩu tài khoản cửa hàng vào app.","Sign in with the email used to buy the bundle and verify with a code sent by email. Do not enter your store account password in the app."));
             button(t("Quay lại ứng dụng","Back to app"),this::finish);
         }else if(token().isEmpty()){
-            label(t("ĐĂNG NHẬP COMBO","SIGN IN TO YOUR BUNDLE"));note(t("Dùng đúng email đã mua combo trên Ko-fi. Mã xác nhận có 6 số, dùng một lần.","Use the email from your Ko-fi bundle purchase. The six-digit verification code is single use."));
-            email=input(t("Email thanh toán Ko-fi","Ko-fi purchase email"),InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,emailSaved());
+            label(t("ĐĂNG NHẬP COMBO","SIGN IN TO YOUR BUNDLE"));note(t("Dùng đúng email đã mua combo. Mã xác nhận gửi qua email gồm 6 số và chỉ dùng một lần. Không nhập mật khẩu tài khoản cửa hàng vào app.","Use the email from your bundle purchase. The six-digit code sent by email is single use. Do not enter your store account password in the app."));
+            email=input(t("Email đã mua combo","Bundle purchase email"),InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,emailSaved());
             Button request=button(t("Gửi mã đăng nhập","Send sign-in code"),this::requestCode);if(SystemClock.elapsedRealtime()<resendAfter)request.setEnabled(false);
             code=input(t("Mã xác nhận 6 số","Six-digit verification code"),InputType.TYPE_CLASS_NUMBER,"");code.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(6)});
             button(t("Xác nhận & đăng nhập","Verify & sign in"),this::verifyCode);note(t("Mã có hiệu lực 10 phút. Gửi lại sau ít nhất 60 giây.","Codes expire after 10 minutes. Wait at least 60 seconds before requesting another."));
         }else{
             JSONObject account=LicenseAccess.account(this);label(account.optString("email"));boolean entitled=account.optBoolean("entitled",false);
             label(entitled?t("COMBO VĨNH VIỄN","LIFETIME BUNDLE"):t("CHƯA CÓ QUYỀN COMBO","NO BUNDLE PURCHASE"));
-            if(!entitled){note(t("Chưa tìm thấy giao dịch hợp lệ cho email này. Nếu vừa thanh toán, kiểm tra lại sau hoặc liên hệ người bán.","No valid purchase was found for this email. If you just paid, refresh shortly or contact the seller."));button(t("Xem combo trên Ko-fi","View bundle on Ko-fi"),()->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(config.shop))));}
+            if(!entitled){note(t("Chưa tìm thấy giao dịch hợp lệ cho email này. Nếu vừa thanh toán, kiểm tra lại sau hoặc liên hệ người bán.","No valid purchase was found for this email. If you just paid, refresh shortly or contact the seller."));button(t("Mở cửa hàng combo","Open bundle store"),()->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(config.shop))));}
             if(entitled){
                 try{JSONObject grant=LicenseAccess.verified(this);currentDevice=grant.getString("device_id");long expiry=grant.getLong("exp")*1000;note(t("Đã kích hoạt máy này. Quyền mua không hết hạn; xác minh offline đến ","This device is activated. Your purchase does not expire; offline verification is valid until ")+java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT,english?Locale.US:new Locale("vi","VN")).format(new Date(expiry)));}
                 catch(Exception ignored){currentDevice="";note(t("Máy này cần kích hoạt hoặc kiểm tra lại qua mạng.","This device needs activation or an online verification."));}
