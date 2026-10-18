@@ -46,3 +46,13 @@ adb shell am instrument -w -e mode clipBoundary com.thor.instantreplay.test/com.
 ```
 
 The mode creates and removes only its own temporary cache files; it does not read or modify `Movies/ThorClips`. The parent-reported Android run returned **23 checks; symlinkTested=true**. The existing UI / locale / controller mode remains available without the `mode` argument.
+
+## Final buffering restoration after installation
+
+After the parent installed the final APK, buffering was restored on Thor and verified directly. The Vietnamese screen displayed **ĐANG GHI ĐỆM**; the RAM buffer increased from 0 MB to 1 MB with the original 60-second setting. Both the active `com.thor.instantreplay` media projection and foreground service 1001 remained present after removing the agent's `com.thor.instantreplay.test` package. No replay clip or continuous recording was saved during this restoration.
+
+All 32 existing MP4 files had identical SHA-256 hashes before and after restoration. Before restarting capture, the existing device regression passed its expected original capture-preference hash assertion: `2fcf50dd2c29e7f924e93389e10693db16ceceb2e17ea08185d4caa9575eb961`. No capture/audio setting or permission was changed afterward. Vietnamese was selected through the native language menu and remained displayed at handoff.
+
+One restoration attempt encountered a ROM `system_server` watchdog while `uiautomator` registered its accessibility service concurrently with virtual-display creation. The captured watchdog stacks showed a DisplayManager/AccessibilityManager lock inversion; Android restarted itself without an agent reboot command. This is evidence of a system lock conflict during that attempt, not proof that every possible app contribution is excluded. The successful retry avoided `uiautomator` during projection startup and used read-only screenshots/service checks afterward. No source or APK changes were made for restoration.
+
+Evidence is saved outside the repository under `outputs/combo-qa`: `android-replay-restored-buffering-vi.png`, `android-replay-restore-report.json`, and the before/after clip hash manifests. All hanging read commands ended with the system restart; only the normal ADB server remained at handoff.
