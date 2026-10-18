@@ -46,6 +46,8 @@ $env:KHOGAME_DEBUG_KEYSTORE='E:\DevTools\Android\UserHome\debug.keystore'
 
 The release uses the existing signing identity so it can update the installed app without deleting data. Signing keys are external to the repository and must not be published. APK: `app/build/outputs/apk/release/app-release.apk`.
 
+LAN sharing accepts only direct MP4 files inside the canonical clip directory. Generated web links preserve Unicode / spaces / plus characters; path traversal and encoded path separators are rejected. Host file-policy and actual HTTP regression harnesses are in `tests/standalone` and `tests/host-server`. The device QA runner also accepts `-e mode clipBoundary` to exercise the same boundary policy, including a symlink escape, against owned temporary cache files.
+
 `AppLanguage.get(context)` / `set(context,"vi"|"en")` / `wrap(context)` are available to Java and Kotlin. The language is kept in `android_replay_ui.language`, and setting it also synchronizes `thorqol_ui.language` for the combo account screen. Existing capture preferences remain in `thor_replay_prefs`.
 
 Mục Tài khoản đã tích hợp giao diện dùng chung cho combo. Cấu hình hiện tại là preview: chưa kết nối máy chủ / xác nhận thanh toán và chưa bật khóa trả phí. Không có đường đăng nhập giả hoặc tự xác nhận đã mua. The original source did not include an online APK updater; the update channel still needs a separate implementation before distribution through in-app updates.

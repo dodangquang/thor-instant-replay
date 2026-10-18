@@ -165,7 +165,7 @@ class ThorWebServer(private val port: Int = 8080, private val english: Boolean =
 
     private fun sendHtmlDashboard(out: OutputStream) {
         val clipsDir = getClipsDir()
-        val clips = clipsDir.listFiles { f -> f.extension.equals("mp4", ignoreCase = true) }
+        val clips = clipsDir.listFiles { f -> ClipFilePolicy.resolve(clipsDir, f.name) != null }
             ?.sortedByDescending { it.lastModified() } ?: emptyList()
 
         val sb = StringBuilder()
@@ -204,11 +204,12 @@ class ThorWebServer(private val port: Int = 8080, private val english: Boolean =
             for (clip in clips) {
                 val sizeMb = String.format(Locale.US, "%.1f MB", clip.length() / (1024.0 * 1024.0))
                 val timeStr = dateFormat.format(Date(clip.lastModified()))
-                val safeName = clip.name
+                val safeName = ClipFilePolicy.queryName(clip.name)
+                val displayName = ClipFilePolicy.htmlName(clip.name)
 
                 sb.append("<div class='clip-card'>")
                 sb.append("<div class='clip-info'>")
-                sb.append("<div class='clip-name'>${clip.name}</div>")
+                sb.append("<div class='clip-name'>${displayName}</div>")
                 sb.append("<div class='clip-meta'>$sizeMb · $timeStr</div>")
                 sb.append("</div>")
                 sb.append("<div class='btn-group'>")
@@ -239,8 +240,8 @@ class ThorWebServer(private val port: Int = 8080, private val english: Boolean =
         rangeHeader: String?,
         out: OutputStream
     ) {
-        val file = File(getClipsDir(), fileName)
-        if (!file.exists() || !file.isFile || !file.name.endsWith(".mp4", ignoreCase = true)) {
+        val file = ClipFilePolicy.resolve(getClipsDir(), fileName)
+        if (file == null) {
             send404(out)
             return
         }
@@ -263,10 +264,11 @@ class ThorWebServer(private val port: Int = 8080, private val english: Boolean =
         val contentLength = end - start + 1
         val statusLine = if (isPartial) "HTTP/1.1 206 Partial Content\r\n" else "HTTP/1.1 200 OK\r\n"
 
+        val headerName = ClipFilePolicy.dispositionName(file.name)
         val disposition = if (isDownload) {
-            "Content-Disposition: attachment; filename=\"${file.name}\"\r\n"
+            "Content-Disposition: attachment; filename=\"${headerName}\"\r\n"
         } else {
-            "Content-Disposition: inline; filename=\"${file.name}\"\r\n"
+            "Content-Disposition: inline; filename=\"${headerName}\"\r\n"
         }
 
         val rangeResponse = if (isPartial) {

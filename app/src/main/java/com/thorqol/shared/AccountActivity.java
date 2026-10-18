@@ -28,7 +28,7 @@ public final class AccountActivity extends Activity {
     final ExecutorService worker=Executors.newSingleThreadExecutor();final Handler ui=new Handler(Looper.getMainLooper());
     LinearLayout body;TextView status;EditText email,code,name;LicenseConfig config;JSONArray devices=new JSONArray();
     final ArrayList<Button> buttons=new ArrayList<>();boolean pending,english,held,stickBlocked;View pressed;int stickDirection;long nextStick;
-    String message="",deviceKey="",currentDevice="";long resendAfter;
+    String message="",deviceKey="",currentDevice="",chosenName=Build.MANUFACTURER+" "+Build.MODEL;long resendAfter;
     final Runnable tick=new Runnable(){public void run(){if(!hasWindowFocus()||stickDirection==0||stickBlocked)return;long now=SystemClock.uptimeMillis();if(now>=nextStick){move(stickDirection);nextStick=now+145;}ui.postDelayed(this,16);}};
     String t(String vi,String en){return english?en:vi;}
     int dp(float v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
@@ -61,7 +61,7 @@ public final class AccountActivity extends Activity {
         status=text(message,14,PINK);body.addView(status);
         boolean ready=config!=null&&config.ready()&&!deviceKey.isEmpty();
         if(!ready){label(t("ĐANG CHUẨN BỊ MỞ BÁN","PREPARING FOR LAUNCH"));note(t("Máy chủ tài khoản và xác nhận thanh toán chưa được kết nối. Bản này vẫn dùng các chức năng hiện có; chưa bật khóa trả phí.","The account server and payment verification are not connected yet. Existing app features remain available; paid access is not enabled."));
-            label(t("COMBO 3 ỨNG DỤNG","3-APP COMBO"));note("Việt Hóa PC · Emu Game Store · Android Replay");note(t("25 USD một lần. Một tài khoản, tối đa 2 thiết bị cho cả combo. Cả ba app trên cùng một máy tính là 1 thiết bị.","USD 25 once. One account, up to 2 devices across the bundle. All three apps on one device use one slot."));
+            label(t("COMBO 3 ỨNG DỤNG","3-APP COMBO"));note("Việt Hóa PC · Emu Game Store · Android Replay");note(t("25 USD một lần. Một tài khoản, tối đa 2 thiết bị cho cả combo. Cài cả ba app trên cùng một thiết bị chỉ tính là 1 máy.","USD 25 once. One account, up to 2 devices across the bundle. All three apps on one device use one slot."));
             note(t("Đăng nhập sẽ dùng email đã thanh toán Ko-fi, xác thực bằng mã email; không nhập mật khẩu Ko-fi vào app.","Sign-in will use the email from your Ko-fi purchase, verified by an email code. Do not enter your Ko-fi password in the app."));
             button(t("Quay lại ứng dụng","Back to app"),this::finish);
         }else if(token().isEmpty()){
@@ -77,7 +77,7 @@ public final class AccountActivity extends Activity {
             if(entitled){
                 try{JSONObject grant=LicenseAccess.verified(this);currentDevice=grant.getString("device_id");long expiry=grant.getLong("exp")*1000;note(t("Đã kích hoạt máy này. Quyền mua không hết hạn; xác minh offline đến ","This device is activated. Your purchase does not expire; offline verification is valid until ")+java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT,english?Locale.US:new Locale("vi","VN")).format(new Date(expiry)));}
                 catch(Exception ignored){currentDevice="";note(t("Máy này cần kích hoạt hoặc kiểm tra lại qua mạng.","This device needs activation or an online verification."));}
-                name=input(t("Tên thiết bị","Device name"),InputType.TYPE_CLASS_TEXT,Build.MANUFACTURER+" "+Build.MODEL);
+                name=input(t("Tên thiết bị","Device name"),InputType.TYPE_CLASS_TEXT,chosenName);
                 button(t("Kích hoạt máy này / làm mới quyền","Activate this device / refresh access"),()->activate(null));
             }
             label(t("THIẾT BỊ ĐÃ KÍCH HOẠT","ACTIVATED DEVICES")+" ("+devices.length()+"/2)");
@@ -109,7 +109,7 @@ public final class AccountActivity extends Activity {
     void load(){run(()->{JSONObject a=api("GET","/v1/account",null,true).getJSONObject("account");SecureStore.put(this,"account",a.toString());devices=api("GET","/v1/devices",null,true).getJSONArray("devices");
         if(a.optBoolean("entitled")&&!SecureStore.get(this,"grant").isEmpty())saveGrant(api("POST","/v1/license/refresh",new JSONObject().put("deviceKey",deviceKey).put("appId",getPackageName()),true));
         if(!a.optBoolean("entitled"))SecureStore.remove(this,"grant");message=t("Đã cập nhật tài khoản và danh sách thiết bị.","Account and devices refreshed.");});}
-    void activate(String replace){final String title=name==null?Build.MODEL:name.getText().toString().trim();run(()->{JSONObject b=new JSONObject().put("deviceKey",deviceKey).put("name",title).put("appId",getPackageName());if(replace!=null)b.put("replaceDeviceId",replace);
+    void activate(String replace){final String title=name==null?chosenName:name.getText().toString().trim();chosenName=title;run(()->{JSONObject b=new JSONObject().put("deviceKey",deviceKey).put("name",title).put("appId",getPackageName());if(replace!=null)b.put("replaceDeviceId",replace);
         saveGrant(api("POST","/v1/devices/activate",b,true));devices=api("GET","/v1/devices",null,true).getJSONArray("devices");message=t("Đã kích hoạt. Cả ba app trên máy này dùng chung một suất.","Activated. All three apps on this device share one slot.");});}
     void saveGrant(JSONObject response)throws Exception{String grant=response.getString("license");long now=System.currentTimeMillis()/1000;LicenseGrant.verify(grant,config.spki,config.keyId,deviceKey,getPackageName(),LicenseAccess.account(this).getString("id"),now,0);
         SecureStore.put(this,"grant",grant);SecureStore.put(this,"device",response.getJSONObject("device").getString("id"));SecureStore.put(this,"last_seen",Long.toString(now));}
@@ -142,10 +142,11 @@ public final class AccountActivity extends Activity {
         case "SESSION_DEVICE_MISMATCH":return t("Phiên thuộc máy khác. Đăng nhập lại trên máy này.","This session belongs to another device. Sign in again here.");
         case "INVALID_DEVICE_NAME":return t("Tên máy phải dài từ 1 đến 80 ký tự.","Device names must be 1–80 characters long.");
         default:return t("Dịch vụ chưa sẵn sàng. Vui lòng thử lại sau.","The service is unavailable. Please try again later.");}}
-    void move(int key){long now=SystemClock.uptimeMillis();super.dispatchKeyEvent(new KeyEvent(now,now,KeyEvent.ACTION_DOWN,key,0));super.dispatchKeyEvent(new KeyEvent(now,now,KeyEvent.ACTION_UP,key,0));}
+    void ensureControllerFocus(){View focused=getCurrentFocus();if(focused!=null){if(focused.isInTouchMode())focused.requestFocusFromTouch();return;}for(Button b:buttons)if(b.isEnabled()&&b.isShown()){b.requestFocusFromTouch();return;}}
+    void move(int key){ensureControllerFocus();long now=SystemClock.uptimeMillis();super.dispatchKeyEvent(new KeyEvent(now,now,KeyEvent.ACTION_DOWN,key,0));super.dispatchKeyEvent(new KeyEvent(now,now,KeyEvent.ACTION_UP,key,0));}
     @Override public boolean dispatchGenericMotionEvent(MotionEvent e){if(e.isFromSource(InputDevice.SOURCE_JOYSTICK)&&e.getActionMasked()==MotionEvent.ACTION_MOVE){float x=e.getAxisValue(MotionEvent.AXIS_X),y=e.getAxisValue(MotionEvent.AXIS_Y);if(Math.max(Math.abs(x),Math.abs(y))<.35f){stickDirection=0;stickBlocked=false;ui.removeCallbacks(tick);return true;}int direction=Math.max(Math.abs(x),Math.abs(y))<.55f?0:Math.abs(x)>Math.abs(y)?(x<0?KeyEvent.KEYCODE_DPAD_LEFT:KeyEvent.KEYCODE_DPAD_RIGHT):(y<0?KeyEvent.KEYCODE_DPAD_UP:KeyEvent.KEYCODE_DPAD_DOWN);
         if(direction!=0&&direction!=stickDirection&&!stickBlocked){stickDirection=direction;move(direction);nextStick=SystemClock.uptimeMillis()+380;ui.removeCallbacks(tick);ui.post(tick);}return true;}return super.dispatchGenericMotionEvent(e);}
-    @Override public boolean dispatchKeyEvent(KeyEvent e){int k=e.getKeyCode();if(k==KeyEvent.KEYCODE_BUTTON_A){if(e.getAction()==KeyEvent.ACTION_DOWN){if(e.getRepeatCount()==0){held=true;pressed=getCurrentFocus();}}else{boolean click=held&&pressed!=null&&pressed==getCurrentFocus()&&!e.isCanceled();View target=pressed;held=false;pressed=null;if(click)target.performClick();}return true;}
+    @Override public boolean dispatchKeyEvent(KeyEvent e){int k=e.getKeyCode();if(k==KeyEvent.KEYCODE_BUTTON_A){if(e.getAction()==KeyEvent.ACTION_DOWN){if(e.getRepeatCount()==0){ensureControllerFocus();held=true;pressed=getCurrentFocus();}}else{boolean click=held&&pressed!=null&&pressed==getCurrentFocus()&&!e.isCanceled();View target=pressed;held=false;pressed=null;if(click)target.performClick();}return true;}
         if(k==KeyEvent.KEYCODE_BUTTON_B){if(e.getAction()==KeyEvent.ACTION_UP&&!e.isCanceled())onBackPressed();return true;}return super.dispatchKeyEvent(e);}
     @Override public void onBackPressed(){
         if(config!=null&&config.enforce){

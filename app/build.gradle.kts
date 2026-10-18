@@ -39,6 +39,7 @@ android {
     buildFeatures {
         viewBinding = true
     }
+    sourceSets.getByName("androidTest").java.srcDir(rootProject.file("tests/standalone"))
 }
 
 dependencies {

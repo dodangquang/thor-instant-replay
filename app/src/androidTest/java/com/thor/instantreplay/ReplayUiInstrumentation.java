@@ -22,6 +22,7 @@ import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import com.thor.instantreplay.share.ClipFilePolicyTest;
 
 /** Device regression exercises real input dispatch, locale and original settings. */
 public final class ReplayUiInstrumentation extends Instrumentation {
@@ -37,6 +38,17 @@ public final class ReplayUiInstrumentation extends Instrumentation {
         Bundle result = new Bundle();
         Activity activity = null;
         Context ctx = getTargetContext();
+        if ("clipBoundary".equals(arguments.getString("mode"))) {
+            try {
+                ClipFilePolicyTest.main(new String[]{ctx.getCacheDir().getAbsolutePath()});
+                result.putString("stream", "PASS " + ClipFilePolicyTest.getChecks() + " clip-sharing boundary checks; symlinkTested=" + ClipFilePolicyTest.wasSymlinkTested() + "\n");
+                finish(Activity.RESULT_OK, result);
+            } catch (Throwable error) {
+                result.putString("stream", "FAIL clip-sharing boundary: " + error + "\n");
+                finish(Activity.RESULT_CANCELED, result);
+            }
+            return;
+        }
         Map<String, ?> before = new HashMap<>(ctx.getSharedPreferences("thor_replay_prefs", 0).getAll());
         String originalLanguage = AppLanguage.get(ctx);
         try {
