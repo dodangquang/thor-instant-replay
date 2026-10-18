@@ -36,7 +36,7 @@ public final class AccountActivity extends Activity {
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);try{config=new LicenseConfig(this);deviceKey=DeviceIdentity.get(this);}catch(Exception e){message=t("Chưa đọc được cấu hình tài khoản.","Account configuration could not be loaded.");}
         if(config!=null&&config.ready())getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
-        render();if(config!=null&&config.ready()&&!token().isEmpty())load();
+        render();LanguagePrompt.ensure(this,()->{english="en".equals(LanguagePrompt.language(this));render();if(config!=null&&config.ready()&&!token().isEmpty())load();});
     }
     @Override protected void onDestroy(){ui.removeCallbacksAndMessages(null);worker.shutdownNow();super.onDestroy();}
     @Override protected void onPause(){ui.removeCallbacks(tick);held=false;pressed=null;stickDirection=0;super.onPause();}
@@ -72,10 +72,12 @@ public final class AccountActivity extends Activity {
             button(t("Xác nhận & đăng nhập","Verify & sign in"),this::verifyCode);note(t("Mã có hiệu lực 10 phút. Gửi lại sau ít nhất 60 giây.","Codes expire after 10 minutes. Wait at least 60 seconds before requesting another."));
         }else{
             JSONObject account=LicenseAccess.account(this);label(account.optString("email"));boolean entitled=account.optBoolean("entitled",false);
-            label(entitled?t("COMBO VĨNH VIỄN","LIFETIME BUNDLE"):t("CHƯA CÓ QUYỀN COMBO","NO BUNDLE PURCHASE"));
+            String until=account.optString("validUntil","");boolean finite=entitled&&!until.isEmpty()&&!"null".equals(until);
+            label(entitled?(finite?t("QUYỀN CÓ THỜI HẠN","TIME-LIMITED ACCESS"):t("COMBO VĨNH VIỄN","LIFETIME BUNDLE")):t("CHƯA CÓ QUYỀN COMBO","NO BUNDLE PURCHASE"));
+            if(finite)try{note(t("Hạn quyền: ","Access expires: ")+java.text.DateFormat.getDateTimeInstance().format(java.util.Date.from(java.time.Instant.parse(until))));}catch(Exception ignored){}
             if(!entitled){note(t("Chưa tìm thấy giao dịch hợp lệ cho email này. Nếu vừa thanh toán, kiểm tra lại sau hoặc liên hệ người bán.","No valid purchase was found for this email. If you just paid, refresh shortly or contact the seller."));button(t("Mở cửa hàng combo","Open bundle store"),()->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(config.shop))));}
             if(entitled){
-                try{JSONObject grant=LicenseAccess.verified(this);currentDevice=grant.getString("device_id");long expiry=grant.getLong("exp")*1000;note(t("Đã kích hoạt máy này. Quyền mua không hết hạn; xác minh offline đến ","This device is activated. Your purchase does not expire; offline verification is valid until ")+java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT,english?Locale.US:new Locale("vi","VN")).format(new Date(expiry)));}
+                try{JSONObject grant=LicenseAccess.verified(this);currentDevice=grant.getString("device_id");long expiry=grant.getLong("exp")*1000;note(t("Đã kích hoạt máy này. Xác minh offline đến ","This device is activated. Offline verification is valid until ")+java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT,english?Locale.US:new Locale("vi","VN")).format(new Date(expiry)));}
                 catch(Exception ignored){currentDevice="";note(t("Máy này cần kích hoạt hoặc kiểm tra lại qua mạng.","This device needs activation or an online verification."));}
                 name=input(t("Tên thiết bị","Device name"),InputType.TYPE_CLASS_TEXT,chosenName);
                 button(t("Kích hoạt máy này / làm mới quyền","Activate this device / refresh access"),()->activate(null));
@@ -88,6 +90,8 @@ public final class AccountActivity extends Activity {
             button(t("Làm mới tài khoản & danh sách máy","Refresh account & devices"),this::load);
             button(t("Đăng xuất tài khoản","Sign out"),()->confirm(t("Đăng xuất?","Sign out?"),t("Đăng xuất không tự giải phóng suất thiết bị. Dùng Ngắt thiết bị nếu muốn chuyển sang máy khác.","Signing out does not free a device slot. Use Deactivate device to move to another device."),this::logout));
         }
+        button(t("Cập nhật ứng dụng","Update app"),()->AppUpdates.open(this));
+        button("Tiếng Việt / English",()->LanguagePrompt.show(this,()->{english="en".equals(LanguagePrompt.language(this));render();}));
         button(t("Đóng","Close"),this::onBackPressed);
         root.addView(text(t("D-pad / cần trái: di chuyển · A: chọn khi nhả · B: quay lại","D-pad / left stick: navigate · release A: select · B: back"),12,MUTED));
         if(pending)for(Button b:buttons)b.setEnabled(false);

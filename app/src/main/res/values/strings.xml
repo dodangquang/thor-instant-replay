@@ -87,4 +87,5 @@
     <string name="library_empty">Chưa có clip. Bật Replay rồi lưu khoảnh khắc vừa chơi.</string>
     <string name="adb_status_ok">✓ Quyền ghi màn hình sẵn sàng</string>
     <string name="adb_status_need">Android sẽ hỏi quyền ghi màn hình khi bắt đầu.</string>
+    <string name="app_update">Cập nhật</string>
 </resources>

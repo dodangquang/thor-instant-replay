@@ -635,6 +635,7 @@ class MainActivity : AppCompatActivity() {
         val tabs = listOf(binding.tabCapture, binding.tabAudio, binding.tabClips, binding.tabControls)
         tabs.forEachIndexed { index, button -> button.setOnClickListener { selectTab(index) } }
         binding.btnAccount.setOnClickListener { LicenseAccess.open(this) }
+        binding.btnUpdate.setOnClickListener { com.thorqol.shared.AppUpdates.open(this) }
         binding.tvTrialStatus.setOnClickListener { LicenseAccess.open(this) }
         binding.btnSetup.setOnClickListener { showSetupGuide() }
         binding.btnLanguage.setOnClickListener {

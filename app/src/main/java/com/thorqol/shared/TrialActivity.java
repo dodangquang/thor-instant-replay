@@ -21,7 +21,7 @@ public final class TrialActivity extends Activity {
     private String t(String vi,String en){return TrialAccess.t(this,vi,en);}
     private int dp(float x){return (int)(x*getResources().getDisplayMetrics().density+.5f);}
     private GradientDrawable background(int fill,int stroke){GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(8));if(stroke!=0)d.setStroke(dp(2),stroke);return d;}
-    @Override public void onCreate(Bundle saved){super.onCreate(saved);getWindow().setFlags(1024,1024);render();}
+    @Override public void onCreate(Bundle saved){super.onCreate(saved);getWindow().setFlags(1024,1024);render();LanguagePrompt.ensure(this,this::render);}
     private void text(String value,int size,int color){TextView v=new TextView(this);v.setText(value);v.setTextSize(size);v.setTextColor(color);v.setPadding(0,dp(5),0,dp(9));body.addView(v);}
     private Button button(String title,Runnable action){Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setTextColor(0xff211f30);b.setTypeface(null,Typeface.BOLD);b.setBackground(background(0xffe4f43c,0));b.setOnClickListener(v->{if(!pending)action.run();});b.setOnFocusChangeListener((v,f)->b.setBackground(background(f?0xffc2fff0:0xffe4f43c,f?0xffff4795:0)));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(48));p.bottomMargin=dp(10);body.addView(b,p);b.setEnabled(!pending);if(firstButton==null&&b.isEnabled())firstButton=b;return b;}
     private void render(){
@@ -38,6 +38,8 @@ public final class TrialActivity extends Activity {
         button(t("Làm mới hạn mức","Refresh allowance"),()->run(false));
         enter=button(t("Vào ứng dụng","Open app"),this::launch);enter.setEnabled(!pending&&TrialAccess.canUse(this));
         button(t("Mở combo chính · $25 vĩnh viễn / 2 máy","Full bundle · $25 lifetime / 2 devices"),()->{try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(new TrialAccess.Config(this).shop)));}catch(Exception e){message=t("Chưa mở được cửa hàng.","Could not open the store.");render();}});
+        button(t("Cập nhật ứng dụng","Update app"),()->AppUpdates.open(this));
+        button("Tiếng Việt / English",()->LanguagePrompt.show(this,this::render));
         button(t("Đóng","Close"),this::finish);
         TextView hint=new TextView(this);hint.setText(t("D-pad / cần trái: di chuyển  |  Nhả A: chọn  |  B: đóng","D-pad / left stick: move  |  Release A: select  |  B: close"));hint.setTextColor(0xffb4ccd0);hint.setTextSize(12);hint.setPadding(0,dp(8),0,0);root.addView(hint);
         if(firstButton!=null)firstButton.requestFocusFromTouch();

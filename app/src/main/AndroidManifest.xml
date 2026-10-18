@@ -15,6 +15,7 @@
 
     <!-- Local Wi-Fi Quick Share -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
@@ -118,6 +119,8 @@
             </intent-filter>
         </receiver>
 
+            <activity android:name="com.thorqol.shared.AppUpdateActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:theme="@android:style/Theme.Material.NoActionBar" />
+        <provider android:name="com.thorqol.shared.AppUpdateProvider" android:authorities="${applicationId}.thorqol.updates" android:exported="false" android:grantUriPermissions="true" />
     </application>
 
 </manifest>

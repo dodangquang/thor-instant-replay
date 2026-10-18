@@ -19,10 +19,10 @@ public final class LicenseAccess {
     }
     public static boolean canUse(Context c){if(TrialAccess.enabled(c))return TrialAccess.canUse(c);try{LicenseConfig config=new LicenseConfig(c);if(!config.enforce)return true;verified(c);return true;}catch(Exception e){return false;}}
     public static boolean guard(Activity a){
-        if(TrialAccess.enabled(a))return TrialAccess.guard(a);
+        if(TrialAccess.enabled(a)){boolean allowed=TrialAccess.guard(a);if(allowed)AppUpdates.autoCheck(a);return allowed;}
         if(!canUse(a)){a.startActivity(new Intent(a,AccountActivity.class).putExtra("return_to_app",true));a.finish();return false;}
         java.lang.ref.WeakReference<Activity> activity=new java.lang.ref.WeakReference<>(a);
-        refresh(a,()->{Activity current=activity.get();if(current!=null&&!current.isFinishing()&&!current.isDestroyed())guard(current);});return true;
+        refresh(a,()->{Activity current=activity.get();if(current!=null&&!current.isFinishing()&&!current.isDestroyed())guard(current);});AppUpdates.autoCheck(a);return true;
     }
     public static void open(Activity a){if(TrialAccess.enabled(a))TrialAccess.open(a);else a.startActivity(new Intent(a,AccountActivity.class));}
     static void clearSession(Context c){for(String key:new String[]{"token","account","grant","device"})SecureStore.remove(c,key);}

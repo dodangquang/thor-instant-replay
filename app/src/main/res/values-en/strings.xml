@@ -87,4 +87,5 @@
     <string name="library_empty">No clips yet. Start Replay, then save a recent moment.</string>
     <string name="adb_status_ok">✓ Screen recording permission ready</string>
     <string name="adb_status_need">Android will ask for screen recording permission when you start.</string>
+    <string name="app_update">Update</string>
 </resources>
