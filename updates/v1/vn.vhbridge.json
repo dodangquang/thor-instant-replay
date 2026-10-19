@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "packageName": "vn.vhbridge",
+  "channel": "full",
+  "versionCode": 10203,
+  "versionName": "1.2.3",
+  "minSdk": 26,
+  "bytes": 5895603,
+  "sha256": "74ac4dee57f573528b823b44a27959500275bbaadf9acb8984a0a992fe4eb303",
+  "apkUrl": "https://github.com/dodangquang/thor-instant-replay/releases/download/thorqol-vh-v1.2.3/Viet-Hoa-PC-1.2.3.apk",
+  "notesVi": "Sắp xếp theo ngày đăng khi nguồn có dữ liệu; giữ thứ tự danh mục Revolt khi chưa có ngày. Gói đã tải theo thứ tự danh mục. Chuyển kiểm tra cập nhật ứng dụng sang GitHub.",
+  "notesEn": "Sort by upload date when available; retain the Revolt catalog order for undated entries. Downloaded packs follow the catalog. App update checks now use GitHub."
+}
