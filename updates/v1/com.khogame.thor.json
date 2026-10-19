@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "packageName": "com.khogame.thor",
   "channel": "full",
-  "versionCode": 45,
-  "versionName": "1.2.5",
+  "versionCode": 46,
+  "versionName": "1.2.6",
   "minSdk": 29,
   "bytes": 47983960,
-  "sha256": "deb8591e4b1b558ddbd6e03f4baf57f5007850338d17735124c55327a47fcb3c",
-  "apkUrl": "https://github.com/dodangquang/thor-instant-replay/releases/download/thorqol-emu-v1.2.5/Emu-Game-Store-1.2.5.apk",
-  "notesVi": "Ưu tiên game mới đăng theo thời gian đăng thật của nguồn PC/Switch. Trang chủ tổng hợp thêm PC, Switch và 3DS. Game chưa có ngày giữ thứ tự nguồn. Sắp xếp lại khi tải thêm và giữ game đang chọn. Kiểm tra cập nhật ứng dụng qua GitHub.",
-  "notesEn": "Prioritize recent uploads using real PC/Switch publication timestamps. Home also includes PC, Switch and 3DS. Undated games retain source order. Loading more reorders by time while preserving selection. App update checks now use GitHub."
+  "sha256": "43e9a9f3e62b9c954388ccbd54a1cc58a48803c77f5c01ebfe375eec3b1e2c8f",
+  "apkUrl": "https://github.com/dodangquang/thor-instant-replay/releases/download/thorqol-emu-v1.2.6/Emu-Game-Store-1.2.6.apk",
+  "notesVi": "Bỏ thông báo thừa ở danh mục. Giữ sắp xếp game mới đăng theo nguồn PC/Switch, tổng hợp các hệ máy và giữ game đang chọn khi tải thêm. Kiểm tra cập nhật ứng dụng qua GitHub.",
+  "notesEn": "Removed the unnecessary catalog notice. Keep recent PC/Switch uploads first, aggregate systems and preserve the selected game when loading more. App update checks use GitHub."
 }
