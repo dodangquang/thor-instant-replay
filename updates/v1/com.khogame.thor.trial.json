@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.khogame.thor.trial",
+  "channel": "trial",
+  "versionCode": 45,
+  "versionName": "1.2.5-trial",
+  "minSdk": 29,
+  "bytes": 47983984,
+  "sha256": "e476093c2b110e32f4f0dbc2a69ab2b02fec01d9afc85920a35dbc7df2a49765",
+  "apkUrl": "https://github.com/dodangquang/thor-instant-replay/releases/download/thorqol-emu-v1.2.5/Emu-Game-Store-1.2.5-trial.apk",
+  "notesVi": "Ưu tiên game mới đăng theo thời gian đăng thật của nguồn PC/Switch. Trang chủ tổng hợp thêm PC, Switch và 3DS. Game chưa có ngày giữ thứ tự nguồn. Sắp xếp lại khi tải thêm và giữ game đang chọn. Kiểm tra cập nhật ứng dụng qua GitHub.",
+  "notesEn": "Prioritize recent uploads using real PC/Switch publication timestamps. Home also includes PC, Switch and 3DS. Undated games retain source order. Loading more reorders by time while preserving selection. App update checks now use GitHub."
+}
