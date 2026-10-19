@@ -1,6 +1,14 @@
-# Android Replay 2.9.0
+# Android Replay 2.9.3
 
 Android Replay lưu khoảnh khắc vừa chơi và quay video trên Android. Đây là tên hiển thị mới của Thor Instant Replay; package `com.thor.instantreplay`, dữ liệu và các action tích hợp cũ được giữ nguyên.
+
+## Sửa lỗi 2.9.3
+
+Ở màn hình tài khoản, **Đóng** và phím **B** mở màn hình chính khi thiết bị có giấy phép hợp lệ, kể cả khi intent không có `return_to_app`. Nếu đã có màn hình chính, app dùng lại màn hình đó. Thiết bị chưa kích hoạt vẫn đóng màn hình tài khoản và không được vào app.
+
+Close and controller B now enter the main app with a valid device activation, including account screens opened without the launcher extra. Returning to an existing main screen preserves that activity. Inactive devices remain blocked.
+
+Kiểm tra trên thiết bị bằng instrumentation với `-e mode accountClose`, sau khi đăng nhập và kích hoạt bình thường. Bài kiểm tra dùng giấy phép thật, kiểm tra nút Đóng/phím B khi có và không có kích hoạt, rồi khôi phục dữ liệu tài khoản; không tạo giấy phép hoặc thay đổi quyền trên máy chủ.
 
 ![Android Replay tiếng Việt](docs/screenshots/android-replay-main-vi.png)
 

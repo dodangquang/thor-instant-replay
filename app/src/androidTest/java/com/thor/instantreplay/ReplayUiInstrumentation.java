@@ -38,6 +38,18 @@ public final class ReplayUiInstrumentation extends Instrumentation {
         Bundle result = new Bundle();
         Activity activity = null;
         Context ctx = getTargetContext();
+        if ("accountState".equals(arguments.getString("mode")) || "accountClose".equals(arguments.getString("mode"))) {
+            try {
+                String message = "accountState".equals(arguments.getString("mode"))
+                    ? "STATE licenseAllowed=" + com.thorqol.shared.LicenseAccess.canUse(ctx)
+                    : new com.thorqol.shared.AccountCloseRegression(this).run();
+                result.putString("stream", message + "\n"); finish(Activity.RESULT_OK, result);
+            } catch (Throwable error) {
+                java.io.StringWriter trace = new java.io.StringWriter(); error.printStackTrace(new java.io.PrintWriter(trace));
+                result.putString("stream", "FAIL account close: " + trace + "\n"); finish(Activity.RESULT_CANCELED, result);
+            }
+            return;
+        }
         if ("snapshot".equals(arguments.getString("mode"))) {
             try {
                 result.putString("stream", "SNAPSHOT capturePrefsSha256=" + preferencesHash(ctx.getSharedPreferences("thor_replay_prefs", 0).getAll()) + " language=" + AppLanguage.get(ctx) + "\n");

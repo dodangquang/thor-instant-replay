@@ -154,8 +154,8 @@ public final class AccountActivity extends Activity {
         if(k==KeyEvent.KEYCODE_BUTTON_B){if(e.getAction()==KeyEvent.ACTION_UP&&!e.isCanceled())onBackPressed();return true;}return super.dispatchKeyEvent(e);}
     @Override public void onBackPressed(){
         if(config!=null&&config.enforce){
-            if(LicenseAccess.canUse(this)&&getIntent().getBooleanExtra("return_to_app",false)){
-                Intent launch=getPackageManager().getLaunchIntentForPackage(getPackageName());if(launch!=null){launch.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);startActivity(launch);}
+            if(LicenseAccess.canUse(this)){
+                Intent launch=getPackageManager().getLaunchIntentForPackage(getPackageName());if(launch!=null){launch.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(launch);}
             }
             finish();return;
         }
