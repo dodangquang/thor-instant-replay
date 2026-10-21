@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "packageName": "com.khogame.thor",
   "channel": "full",
-  "versionCode": 46,
-  "versionName": "1.2.6",
+  "versionCode": 48,
+  "versionName": "1.2.8",
   "minSdk": 29,
-  "bytes": 47983960,
-  "sha256": "43e9a9f3e62b9c954388ccbd54a1cc58a48803c77f5c01ebfe375eec3b1e2c8f",
-  "apkUrl": "https://github.com/dodangquang/thor-instant-replay/releases/download/thorqol-emu-v1.2.6/Emu-Game-Store-1.2.6.apk",
-  "notesVi": "Bỏ thông báo thừa ở danh mục. Giữ sắp xếp game mới đăng theo nguồn PC/Switch, tổng hợp các hệ máy và giữ game đang chọn khi tải thêm. Kiểm tra cập nhật ứng dụng qua GitHub.",
-  "notesEn": "Removed the unnecessary catalog notice. Keep recent PC/Switch uploads first, aggregate systems and preserve the selected game when loading more. App update checks use GitHub."
+  "bytes": 47986096,
+  "sha256": "f764d915ef6ee5208adcb1698449f2f2651c2cc4d6146f3e30f4eaa97bc09591",
+  "apkUrl": "https://github.com/dodangquang/thor-instant-replay/releases/download/thorqol-emu-v1.2.8/Emu-Game-Store-1.2.8.apk",
+  "notesVi": "Sửa không hiện bản tải Tears of the Kingdom và các trang ROMsNS dùng nút động. Bấm Tải để app chuẩn bị link nền; nếu host yêu cầu xác minh, hiện bảng tải gọn trong app với D-pad/A. Giữ tải trực tiếp cho các game có link tệp sẵn và cập nhật ứng dụng qua GitHub.",
+  "notesEn": "Fix missing Tears of the Kingdom download options on dynamic ROMsNS pages. Press Download for background link preparation; hosts requiring verification use a compact in-app panel with D-pad/A. Keep existing direct-file downloads and GitHub app updates."
 }
