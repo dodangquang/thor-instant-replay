@@ -12,18 +12,27 @@ import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.NoiseSuppressor
 import android.media.projection.MediaProjection
-import android.os.Build
+import android.os.Process
 import android.util.Log
 import com.thor.instantreplay.buffer.CircularMediaBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicBoolean
 
+/**
+ * Game audio + microphone mixed into a single AAC track.
+ *
+ * The encoder is driven from the AudioRecord feeder itself: each pass queues one
+ * block of PCM and drains whatever the codec has produced in the meantime, with
+ * a zero timeout. That removes the dedicated output-polling thread the previous
+ * version needed, which woke ~100 times a second even when there was nothing to
+ * collect. All PCM buffers are allocated once, outside the loop.
+ */
 class AudioEncoder(
     private val mediaProjection: MediaProjection,
     private val circularBuffer: CircularMediaBuffer,
     private val sampleRate: Int = 48000,
     private val channelCount: Int = 2,
-    private val bitRate: Int = 160_000,
+    private val bitRate: Int = 128_000,
     private val recordMic: Boolean = true,
     private val enableNoiseFilter: Boolean = true,
     gameVolumePercent: Int = 85,
@@ -31,7 +40,9 @@ class AudioEncoder(
 ) {
     companion object {
         private const val TAG = "AudioEncoder"
-        private const val TIMEOUT_US = 10_000L
+
+        /** 2048 shorts = 1024 stereo frames = 21.3 ms at 48 kHz. */
+        private const val READ_SHORTS = 2048
     }
 
     @Volatile
@@ -48,7 +59,6 @@ class AudioEncoder(
         Log.i(TAG, "Audio volume updated: gameGain=$gameGain (${gamePercent}%), micGain=$micGain (${micPercent}%)")
     }
 
-
     private var playbackRecord: AudioRecord? = null
     private var micRecord: AudioRecord? = null
     private var noiseSuppressor: NoiseSuppressor? = null
@@ -60,7 +70,6 @@ class AudioEncoder(
 
     private var recordThread: Thread? = null
     private var micThread: Thread? = null
-    private var drainThread: Thread? = null
 
     private val micRingBuffer = ConcurrentShortRingBuffer(sampleRate * 2)
 
@@ -72,7 +81,6 @@ class AudioEncoder(
             val channelConfig = if (channelCount == 1) AudioFormat.CHANNEL_IN_MONO else AudioFormat.CHANNEL_IN_STEREO
             val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, AudioFormat.ENCODING_PCM_16BIT)
 
-            // Setup AAC Encoder
             val format = AndroidMediaFormat.createAudioFormat(AndroidMediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, channelCount).apply {
                 setInteger(AndroidMediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
                 setInteger(AndroidMediaFormat.KEY_BIT_RATE, bitRate)
@@ -85,10 +93,12 @@ class AudioEncoder(
             mediaCodec = codec
             isRunning.set(true)
 
-            // Start hardware audio capture (AudioRecord)
             startAudioCapture()
 
-            drainThread = Thread({ drainEncoderLoop() }, "AudioEncoderDrainer").apply { start() }
+            recordThread = Thread({ feedEncoderLoop() }, "AudioRecordFeeder").apply {
+                priority = Thread.NORM_PRIORITY
+                start()
+            }
             Log.i(TAG, "AudioEncoder started (recordMic=$recordMic, enableNoiseFilter=$enableNoiseFilter)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start AudioEncoder", e)
@@ -103,28 +113,26 @@ class AudioEncoder(
             val channelConfig = if (channelCount == 1) AudioFormat.CHANNEL_IN_MONO else AudioFormat.CHANNEL_IN_STEREO
             val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, AudioFormat.ENCODING_PCM_16BIT)
 
-            // 1. Configure Internal Audio Playback Capture (Android 10+)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val playbackConfig = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
-                    .addMatchingUsage(AudioAttributes.USAGE_GAME)
-                    .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
-                    .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
-                    .build()
+            // 1. Internal audio playback capture (Android 10+)
+            val playbackConfig = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
+                .addMatchingUsage(AudioAttributes.USAGE_GAME)
+                .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
+                .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
+                .build()
 
-                playbackRecord = AudioRecord.Builder()
-                    .setAudioFormat(
-                        AudioFormat.Builder()
-                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                            .setSampleRate(sampleRate)
-                            .setChannelMask(channelConfig)
-                            .build()
-                    )
-                    .setAudioPlaybackCaptureConfig(playbackConfig)
-                    .setBufferSizeInBytes(minBufferSize * 2)
-                    .build()
-            }
+            playbackRecord = AudioRecord.Builder()
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(channelConfig)
+                        .build()
+                )
+                .setAudioPlaybackCaptureConfig(playbackConfig)
+                .setBufferSizeInBytes(minBufferSize * 2)
+                .build()
 
-            // 2. Configure Microphone Capture if enabled
+            // 2. Microphone, only when the user asked for it
             if (recordMic) {
                 try {
                     val micMinBufferSize = AudioRecord.getMinBufferSize(
@@ -166,7 +174,6 @@ class AudioEncoder(
 
                     mic.startRecording()
                     micRecord = mic
-                    Log.i(TAG, "Microphone recording initialized successfully")
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to start microphone recording, continuing with internal audio only", e)
                 }
@@ -178,8 +185,6 @@ class AudioEncoder(
             if (micRecord != null) {
                 micThread = Thread({ micCaptureLoop() }, "MicCaptureThread").apply { start() }
             }
-            recordThread = Thread({ feedEncoderLoop() }, "AudioRecordFeeder").apply { start() }
-            Log.i(TAG, "Audio capture started (AudioIn active)")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start audio capture", e)
         }
@@ -189,11 +194,11 @@ class AudioEncoder(
         if (!isRecordingAudio.getAndSet(false)) return
 
         try {
-            // 1. First stop AudioRecords to unblock any pending native reads
+            // 1. Stop the AudioRecords first so pending native reads unblock
             try { playbackRecord?.stop() } catch (_: Exception) {}
             try { micRecord?.stop() } catch (_: Exception) {}
 
-            // 2. Interrupt and join the reading threads so they exit completely
+            // 2. Join the reading threads so they exit completely
             recordThread?.interrupt()
             micThread?.interrupt()
             try { recordThread?.join(300) } catch (_: Exception) {}
@@ -201,7 +206,7 @@ class AudioEncoder(
             recordThread = null
             micThread = null
 
-            // 3. Fully release AudioRecord instances to destroy AudioIn wakelock in audioserver
+            // 3. Release them to drop the AudioIn wakelock in audioserver
             try { playbackRecord?.release() } catch (_: Exception) {}
             playbackRecord = null
 
@@ -215,7 +220,7 @@ class AudioEncoder(
             echoCanceler = null
 
             micRingBuffer.clear()
-            Log.i(TAG, "Audio capture stopped & released (AudioIn wakelock destroyed)")
+            Log.i(TAG, "Audio capture stopped & released")
         } catch (e: Exception) {
             Log.w(TAG, "Error stopping audio capture", e)
         }
@@ -224,7 +229,7 @@ class AudioEncoder(
     fun pause() {
         if (!isRunning.get()) return
         stopAudioCapture()
-        Log.i(TAG, "AudioEncoder paused: AudioRecords released for Doze mode")
+        Log.i(TAG, "AudioEncoder paused: AudioRecords released for Doze")
     }
 
     fun resume() {
@@ -235,8 +240,9 @@ class AudioEncoder(
 
     private fun micCaptureLoop() {
         val mic = micRecord ?: return
-        val micBuffer = ShortArray(1024)
+        val micBuffer = ShortArray(READ_SHORTS / 2)
         val filter = if (enableNoiseFilter) OpenSourceNoiseFilter(sampleRate) else null
+        Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
 
         while (isRecordingAudio.get()) {
             val readShorts = mic.read(micBuffer, 0, micBuffer.size)
@@ -256,12 +262,18 @@ class AudioEncoder(
         }
     }
 
+    /**
+     * Reads one block of captured game audio, mixes in the microphone, queues it,
+     * and collects every encoded packet the codec has ready. One thread, one wake
+     * per 21 ms block, no polling of the encoder.
+     */
     private fun feedEncoderLoop() {
         val record = playbackRecord ?: return
         val codec = mediaCodec ?: return
-        val gameBuffer = ShortArray(1024)
-        val micBuffer = ShortArray(512)
-        val outBuffer = ShortArray(1024)
+        val gameBuffer = ShortArray(READ_SHORTS)
+        val micBuffer = ShortArray(READ_SHORTS / 2)
+        val outBuffer = ShortArray(READ_SHORTS)
+        val bufferInfo = MediaCodec.BufferInfo()
 
         while (isRecordingAudio.get()) {
             val readShorts = record.read(gameBuffer, 0, gameBuffer.size)
@@ -277,14 +289,13 @@ class AudioEncoder(
 
             val frames = readShorts / 2
             val hasMic = micRecord != null
-            val micRead = if (hasMic) micRingBuffer.read(micBuffer, 0, frames) else 0
+            val micRead = if (hasMic) micRingBuffer.read(micBuffer, 0, frames.coerceAtMost(micBuffer.size)) else 0
 
             for (i in 0 until frames) {
                 val gameL = gameBuffer[i * 2]
                 val gameR = gameBuffer[i * 2 + 1]
-                val mic = if (i < micRead) micBuffer[i] else 0
-
                 if (hasMic) {
+                    val mic = if (i < micRead) micBuffer[i] else 0
                     outBuffer[i * 2] = OpenSourceNoiseFilter.mixAndLimit(gameL, mic, gameGain, micGain)
                     outBuffer[i * 2 + 1] = OpenSourceNoiseFilter.mixAndLimit(gameR, mic, gameGain, micGain)
                 } else {
@@ -293,49 +304,54 @@ class AudioEncoder(
                 }
             }
 
-            val inputBufferIndex = codec.dequeueInputBuffer(TIMEOUT_US)
-            if (inputBufferIndex >= 0) {
-                val inputBuffer = codec.getInputBuffer(inputBufferIndex)
+            val inputIndex = codec.dequeueInputBuffer(5_000L)
+            if (inputIndex >= 0) {
+                val inputBuffer = codec.getInputBuffer(inputIndex)
                 if (inputBuffer != null) {
                     inputBuffer.clear()
                     inputBuffer.order(ByteOrder.nativeOrder())
                     inputBuffer.asShortBuffer().put(outBuffer, 0, readShorts)
-                    val ptsUs = System.nanoTime() / 1000
-                    codec.queueInputBuffer(inputBufferIndex, 0, readShorts * 2, ptsUs, 0)
+                    codec.queueInputBuffer(inputIndex, 0, readShorts * 2, System.nanoTime() / 1000, 0)
+                } else {
+                    codec.queueInputBuffer(inputIndex, 0, 0, 0, 0)
                 }
             }
+
+            drainAvailable(codec, bufferInfo)
         }
+
+        drainAvailable(codec, bufferInfo)
     }
 
-    private fun drainEncoderLoop() {
-        val codec = mediaCodec ?: return
-        val bufferInfo = MediaCodec.BufferInfo()
-
-        while (isRunning.get()) {
-            if (!isRecordingAudio.get()) {
-                try {
-                    Thread.sleep(250)
-                } catch (_: InterruptedException) {}
-                continue
+    /** Non-blocking drain; called once per captured block so no thread is needed. */
+    private fun drainAvailable(codec: MediaCodec, bufferInfo: MediaCodec.BufferInfo) {
+        while (true) {
+            val index = try {
+                codec.dequeueOutputBuffer(bufferInfo, 0L)
+            } catch (e: Exception) {
+                Log.w(TAG, "Audio drain failed", e)
+                return
             }
-
-            val outputBufferIndex = codec.dequeueOutputBuffer(bufferInfo, TIMEOUT_US)
-
-            when (outputBufferIndex) {
-                MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+            when {
+                index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                     circularBuffer.audioFormat = codec.outputFormat
                     Log.i(TAG, "Audio output format: ${codec.outputFormat}")
                 }
-                MediaCodec.INFO_TRY_AGAIN_LATER -> {}
-                else -> {
-                    if (outputBufferIndex >= 0) {
-                        val outputBuffer = codec.getOutputBuffer(outputBufferIndex)
-                        if (outputBuffer != null && bufferInfo.size > 0) {
-                            circularBuffer.addSample(outputBuffer, bufferInfo, isVideo = false)
+                index == MediaCodec.INFO_TRY_AGAIN_LATER -> return
+                index >= 0 -> {
+                    try {
+                        if (bufferInfo.size > 0) {
+                            codec.getOutputBuffer(index)?.let { output ->
+                                circularBuffer.addSample(output, bufferInfo, isVideo = false)
+                            }
                         }
-                        codec.releaseOutputBuffer(outputBufferIndex, false)
+                    } catch (t: Throwable) {
+                        Log.w(TAG, "Dropped audio packet", t)
+                    } finally {
+                        runCatching { codec.releaseOutputBuffer(index, false) }
                     }
                 }
+                else -> return
             }
         }
     }
@@ -344,10 +360,10 @@ class AudioEncoder(
         isRunning.set(false)
         stopAudioCapture()
         try {
-            drainThread?.interrupt()
-            drainThread?.join(300)
-            mediaCodec?.stop()
-            mediaCodec?.release()
+            mediaCodec?.let { codec ->
+                runCatching { codec.stop() }
+                runCatching { codec.release() }
+            }
             mediaCodec = null
             Log.i(TAG, "AudioEncoder stopped")
         } catch (e: Exception) {
@@ -356,6 +372,10 @@ class AudioEncoder(
     }
 }
 
+/**
+ * Lock-protected FIFO of 16-bit samples. Copies contiguous runs with
+ * `System.arraycopy` instead of walking one sample at a time.
+ */
 class ConcurrentShortRingBuffer(private val capacity: Int) {
     private val buffer = ShortArray(capacity)
     private var head = 0
@@ -364,15 +384,17 @@ class ConcurrentShortRingBuffer(private val capacity: Int) {
     private val lock = Any()
 
     fun write(src: ShortArray, offset: Int, length: Int) {
+        if (length <= 0) return
         synchronized(lock) {
-            for (i in 0 until length) {
-                buffer[head] = src[offset + i]
-                head = (head + 1) % capacity
-                if (count < capacity) {
-                    count++
-                } else {
-                    tail = (tail + 1) % capacity
-                }
+            var remaining = length
+            var srcOffset = offset
+            while (remaining > 0) {
+                val run = minOf(remaining, capacity - head)
+                System.arraycopy(src, srcOffset, buffer, head, run)
+                head = (head + run) % capacity
+                srcOffset += run
+                remaining -= run
+                count = minOf(capacity, count + run)
             }
             val maxAllowed = 4800
             if (count > maxAllowed) {
@@ -385,10 +407,16 @@ class ConcurrentShortRingBuffer(private val capacity: Int) {
 
     fun read(dest: ShortArray, offset: Int, length: Int): Int {
         synchronized(lock) {
-            val toRead = minOf(length, count)
-            for (i in 0 until toRead) {
-                dest[offset + i] = buffer[tail]
-                tail = (tail + 1) % capacity
+            val toRead = minOf(length, count, dest.size - offset)
+            if (toRead <= 0) return 0
+            var remaining = toRead
+            var dstOffset = offset
+            while (remaining > 0) {
+                val run = minOf(remaining, capacity - tail)
+                System.arraycopy(buffer, tail, dest, dstOffset, run)
+                tail = (tail + run) % capacity
+                dstOffset += run
+                remaining -= run
             }
             count -= toRead
             return toRead

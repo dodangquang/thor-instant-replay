@@ -15,8 +15,16 @@ class TransparentPermissionActivity : Activity() {
         private const val REQUEST_CODE_CAPTURE = 1002
     }
 
+    /**
+     * Lets a measurement harness pick the replay window without touching the UI:
+     * `am start -n com.thor.instantreplay/.TransparentPermissionActivity
+     *           --ei extra_duration_seconds 30`
+     */
+    private var durationOverrideSec: Long = 0L
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        durationOverrideSec = intent?.getLongExtra(ReplayService.EXTRA_DURATION_SECONDS, 0L) ?: 0L
         if (!LicenseAccess.guard(this)) return
         val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_CODE_CAPTURE)
@@ -27,7 +35,7 @@ class TransparentPermissionActivity : Activity() {
         if (requestCode == REQUEST_CODE_CAPTURE) {
             if (resultCode == RESULT_OK && data != null && LicenseAccess.canUse(this)) {
                 val prefs = getSharedPreferences("thor_replay_prefs", Context.MODE_PRIVATE)
-                val durationSec = prefs.getLong("duration_sec", 60L)
+                val durationSec = if (durationOverrideSec > 0L) durationOverrideSec else prefs.getLong("duration_sec", 60L)
                 val dualScreen = prefs.getBoolean("dual_screen", true)
                 val recordMic = prefs.getBoolean("record_mic", true)
                 val noiseFilter = prefs.getBoolean("noise_filter", true)
@@ -40,6 +48,9 @@ class TransparentPermissionActivity : Activity() {
                     putExtra(ReplayService.EXTRA_DUAL_SCREEN, dualScreen)
                     putExtra(ReplayService.EXTRA_RECORD_MIC, recordMic)
                     putExtra(ReplayService.EXTRA_NOISE_FILTER, noiseFilter)
+                    // This activity is only reached through an explicit start (or the
+                    // boot receiver, which already honours the stop latch).
+                    putExtra(ReplayService.EXTRA_FORCE_START, true)
                 }
                 startForegroundService(serviceIntent)
                 Log.i("TransparentPerm", "MediaProjection acquired silently and service started")

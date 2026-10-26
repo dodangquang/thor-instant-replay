@@ -9,6 +9,14 @@ import org.json.JSONObject;
 public final class LicenseAccess {
     private static final java.util.concurrent.ExecutorService NETWORK=java.util.concurrent.Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"thorqol-license-refresh");t.setDaemon(true);return t;});
     private static long lastAttempt;private static boolean refreshing;
+    /**
+     * A verified check costs an asset parse, three Keystore operations, an RSA
+     * signature check and a synchronous SharedPreferences commit (fsync). Replay
+     * called it on the service main thread for every save/record/start action, so
+     * the result is cached for a short window and recomputed on demand.
+     */
+    private static final long CACHE_TTL_MS=30_000L;
+    private static volatile long cachedAt;private static volatile boolean cachedResult;
     private LicenseAccess(){}
     static JSONObject account(Context c){try{return new JSONObject(SecureStore.get(c,"account"));}catch(Exception e){return new JSONObject();}}
     static JSONObject verified(Context c) throws Exception {
@@ -17,7 +25,16 @@ public final class LicenseAccess {
         JSONObject payload=LicenseGrant.verify(SecureStore.get(c,"grant"),config.spki,config.keyId,DeviceIdentity.get(c),c.getPackageName(),account(c).optString("id"),now,last);
         SecureStore.put(c,"last_seen",Long.toString(Math.max(now,last)));return payload;
     }
-    public static boolean canUse(Context c){if(TrialAccess.enabled(c))return TrialAccess.canUse(c);try{LicenseConfig config=new LicenseConfig(c);if(!config.enforce)return true;verified(c);return true;}catch(Exception e){return false;}}
+    public static boolean canUse(Context c){
+        long now=android.os.SystemClock.elapsedRealtime();
+        if(cachedAt!=0&&now-cachedAt<CACHE_TTL_MS)return cachedResult;
+        boolean allowed;
+        try{
+            if(TrialAccess.enabled(c))allowed=TrialAccess.canUse(c);
+            else{LicenseConfig config=new LicenseConfig(c);if(!config.enforce)allowed=true;else{verified(c);allowed=true;}}
+        }catch(Exception e){allowed=false;}
+        cachedResult=allowed;cachedAt=now;return allowed;
+    }
     public static boolean guard(Activity a){
         if(TrialAccess.enabled(a)){boolean allowed=TrialAccess.guard(a);if(allowed)AppUpdates.autoCheck(a);return allowed;}
         if(!canUse(a)){a.startActivity(new Intent(a,AccountActivity.class).putExtra("return_to_app",true));a.finish();return false;}
@@ -25,7 +42,7 @@ public final class LicenseAccess {
         refresh(a,()->{Activity current=activity.get();if(current!=null&&!current.isFinishing()&&!current.isDestroyed())guard(current);});AppUpdates.autoCheck(a);return true;
     }
     public static void open(Activity a){if(TrialAccess.enabled(a))TrialAccess.open(a);else a.startActivity(new Intent(a,AccountActivity.class));}
-    static void clearSession(Context c){for(String key:new String[]{"token","account","grant","device"})SecureStore.remove(c,key);}
+    static void clearSession(Context c){for(String key:new String[]{"token","account","grant","device"})SecureStore.remove(c,key);cachedAt=0;}
     /** Check revocation online at launch/resume; transient failures retain only a still-valid signed lease. */
     public static synchronized void refresh(Context context,Runnable revoked){
         Context c=context.getApplicationContext();long now=android.os.SystemClock.elapsedRealtime();

@@ -1,6 +1,18 @@
-# Android Replay 2.9.3
+# Android Replay 2.9.4
 
 Android Replay lưu khoảnh khắc vừa chơi và quay video trên Android. Đây là tên hiển thị mới của Thor Instant Replay; package `com.thor.instantreplay`, dữ liệu và các action tích hợp cũ được giữ nguyên.
+
+## Hiệu năng 2.9.4
+
+Giảm tải khi replay chạy nền để không làm khựng game. Buffer giữ packet H.264/AAC đã mã hoá trong **một vùng nhớ đặt trước (arena off-heap)** thay vì cấp phát `ByteArray` mỗi khung, nên đường capture không còn sinh rác cho GC — trước đây mỗi giây có ~107 `ByteArray` mới và cửa sổ 120 s chiếm tới 240 MB heap. Dung lượng buffer nay chặn trên theo byte và tái sử dụng giữa các lần start/stop.
+
+Encoder mặc định **720p60 @ 6 Mbps** (trước là 1080p60 @ 16 Mbps) với `KEY_PRIORITY=0`, low-latency, không B-frame. Drain của `MediaCodec` chuyển sang **callback** trên thread riêng thay vì polling timeout 10 ms, và thread ghi clip tách hẳn khỏi thread capture. Các timer định kỳ được bỏ hoặc chỉ chạy khi màn hình app hiển thị; kiểm tra license/trial 5 s → 30 s và có cache.
+
+Capture now uses a preallocated off-heap packet arena instead of one `ByteArray` per frame, `MediaCodec` output is drained by callback instead of 10 ms polling, clip writes happen on their own thread, and the encoder defaults to 720p60 at 6 Mbps with realtime and low-latency hints. Idle timers were removed or gated on visibility.
+
+`com.thor.instantreplay.ACTION_STOP` giờ là lệnh dừng thật: app ghi nhớ, `BootReceiver` không auto-start nữa, và một `ACTION_START` lạc sẽ bị từ chối thay vì âm thầm bật lại capture.
+
+Chi tiết phân tích, số liệu trước/sau và cách đo lại: [docs/ANDROID-REPLAY-PERF-CAPTURE.md](docs/ANDROID-REPLAY-PERF-CAPTURE.md).
 
 ## Sửa lỗi 2.9.3
 

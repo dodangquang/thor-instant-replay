@@ -6,11 +6,24 @@ import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.projection.MediaProjection
+import android.os.Bundle
+import android.os.Handler
+import android.os.HandlerThread
+import android.os.Process
 import android.util.Log
 import android.view.Surface
 import com.thor.instantreplay.buffer.CircularMediaBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 
+/**
+ * Screen capture straight into the hardware H.264 encoder.
+ *
+ * The MediaProjection virtual display renders into the encoder's input surface,
+ * so frames never touch the CPU. Output buffers are handled through the codec's
+ * async callback on a dedicated high-priority thread: nothing polls, buffers are
+ * returned as soon as they are copied into the packet ring, and a slow consumer
+ * can therefore never leave the display pipeline waiting on us.
+ */
 class ScreenEncoder(
     private val mediaProjection: MediaProjection,
     private val circularBuffer: CircularMediaBuffer,
@@ -19,30 +32,33 @@ class ScreenEncoder(
     val dpi: Int,
     val displayConfig: DisplayConfig? = null,
     private val frameRate: Int = 60,
-    private val bitRate: Int = 16_000_000
+    private val bitRate: Int = 6_000_000,
+    private val iFrameIntervalSec: Int = 1
 ) {
     companion object {
         private const val TAG = "ScreenEncoder"
-        private const val TIMEOUT_US = 10_000L
+
+        /**
+         * MediaFormat keys newer than minSdk 29; referenced as literals so the app
+         * keeps running on API 29 instead of failing on a missing static field.
+         */
+        private const val KEY_LOW_LATENCY = "low-latency"
+        private const val KEY_MAX_B_FRAMES = "max-bframes"
     }
 
     private var mediaCodec: MediaCodec? = null
     private var inputSurface: Surface? = null
     private var virtualDisplayTop: VirtualDisplay? = null
-    private var virtualDisplayBottom: VirtualDisplay? = null
     private val isRunning = AtomicBoolean(false)
     private val isPaused = AtomicBoolean(false)
-    private var drainThread: Thread? = null
+    private var callbackThread: HandlerThread? = null
 
     fun pause() {
         if (!isRunning.get() || isPaused.get()) return
         isPaused.set(true)
         try {
-            val params = android.os.Bundle().apply {
-                putInt(MediaCodec.PARAMETER_KEY_SUSPEND, 1)
-            }
-            mediaCodec?.setParameters(params)
-            Log.i(TAG, "ScreenEncoder paused (MediaCodec input suspended for Doze mode)")
+            mediaCodec?.setParameters(Bundle().apply { putInt(MediaCodec.PARAMETER_KEY_SUSPEND, 1) })
+            Log.i(TAG, "ScreenEncoder paused (codec input suspended for Doze)")
         } catch (e: Exception) {
             Log.w(TAG, "Failed to pause ScreenEncoder", e)
         }
@@ -52,14 +68,25 @@ class ScreenEncoder(
         if (!isRunning.get() || !isPaused.get()) return
         isPaused.set(false)
         try {
-            val params = android.os.Bundle().apply {
-                putInt(MediaCodec.PARAMETER_KEY_SUSPEND, 0)
-                putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 1)
-            }
-            mediaCodec?.setParameters(params)
-            Log.i(TAG, "ScreenEncoder resumed (Sync frame requested)")
+            mediaCodec?.setParameters(
+                Bundle().apply {
+                    putInt(MediaCodec.PARAMETER_KEY_SUSPEND, 0)
+                    putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0)
+                }
+            )
+            Log.i(TAG, "ScreenEncoder resumed (sync frame requested)")
         } catch (e: Exception) {
             Log.w(TAG, "Failed to resume ScreenEncoder", e)
+        }
+    }
+
+    /** Asks for an IDR on the next frame so a clip can start on a clean boundary. */
+    fun requestSyncFrame() {
+        if (!isRunning.get()) return
+        try {
+            mediaCodec?.setParameters(Bundle().apply { putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0) })
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to request a sync frame", e)
         }
     }
 
@@ -70,36 +97,32 @@ class ScreenEncoder(
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
             setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
             setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
-            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1) // 1 second keyframe for clean seeking
+            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, iFrameIntervalSec)
             setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh)
             setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel41)
+            // Real-time mode: never trade latency for bitrate accuracy.
+            setInteger(MediaFormat.KEY_PRIORITY, 0)
+            setInteger(MediaFormat.KEY_OPERATING_RATE, frameRate)
+            setInteger(MediaFormat.KEY_CAPTURE_RATE, frameRate)
+            // Emit each frame as it is encoded instead of batching a GOP.
+            setInteger(KEY_LOW_LATENCY, 1)
+            // No B-frames: no reordering delay and no extra reference frames held.
+            setInteger(KEY_MAX_B_FRAMES, 0)
+            setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR)
         }
 
-        val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
-        codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-        inputSurface = codec.createInputSurface()
-        codec.start()
-        mediaCodec = codec
+        val thread = HandlerThread("ScreenEncoder").apply { start() }
+        callbackThread = thread
+        Process.setThreadPriority(thread.threadId, Process.THREAD_PRIORITY_DISPLAY)
 
-        val isDual = displayConfig?.isDualScreen == true && displayConfig.bottomDisplayId != null
+        try {
+            val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+            mediaCodec = codec
+            codec.setCallback(CodecCallback(), Handler(thread.looper))
+            codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            inputSurface = codec.createInputSurface()
+            codec.start()
 
-        if (isDual) {
-            // Dual-screen recording for AYN Thor
-            // Primary screen (Top 1080x1080 scaled) and Secondary screen (Bottom 1080x1240)
-            Log.i(TAG, "Initializing AYN Thor Dual Screen Virtual Displays (Top: ${displayConfig?.topDisplayId}, Bottom: ${displayConfig?.bottomDisplayId})")
-            
-            virtualDisplayTop = mediaProjection.createVirtualDisplay(
-                "ThorScreenTop",
-                width,
-                height,
-                dpi,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                inputSurface,
-                null,
-                null
-            )
-        } else {
-            // Standard Single Screen 1080p
             virtualDisplayTop = mediaProjection.createVirtualDisplay(
                 "ThorScreenMain",
                 width,
@@ -110,66 +133,62 @@ class ScreenEncoder(
                 null,
                 null
             )
-        }
 
-        isRunning.set(true)
-        drainThread = Thread({ drainEncoder() }, "ScreenEncoderDrainer").apply { start() }
-        Log.i(TAG, "ScreenEncoder started at ${width}x${height} @ ${frameRate}fps (DualMode: $isDual)")
+            isRunning.set(true)
+            Log.i(TAG, "ScreenEncoder started at ${width}x${height} @ ${frameRate}fps, ${bitRate / 1000} kbps (async, realtime)")
+        } catch (e: Exception) {
+            // Release whatever was created so a failed start cannot leak a codec.
+            Log.e(TAG, "Failed to start ScreenEncoder", e)
+            stop()
+            throw e
+        }
     }
 
-    private fun drainEncoder() {
-        val codec = mediaCodec ?: return
-        val bufferInfo = MediaCodec.BufferInfo()
+    private inner class CodecCallback : MediaCodec.Callback() {
+        override fun onInputBufferAvailable(codec: MediaCodec, index: Int) {
+            // Surface input: the codec pulls frames from the virtual display itself.
+        }
 
-        while (isRunning.get()) {
-            if (isPaused.get()) {
-                try {
-                    Thread.sleep(250)
-                } catch (_: InterruptedException) {}
-                continue
-            }
-
-            val outputBufferIndex = codec.dequeueOutputBuffer(bufferInfo, TIMEOUT_US)
-
-            when (outputBufferIndex) {
-                MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                    circularBuffer.videoFormat = codec.outputFormat
-                    Log.i(TAG, "Encoder output format changed: ${codec.outputFormat}")
-                }
-                MediaCodec.INFO_TRY_AGAIN_LATER -> {
-                    // Buffer waiting...
-                }
-                else -> {
-                    if (outputBufferIndex >= 0) {
-                        val outputBuffer = codec.getOutputBuffer(outputBufferIndex)
-                        if (outputBuffer != null && bufferInfo.size > 0) {
-                            if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                                bufferInfo.size = 0
-                            } else {
-                                circularBuffer.addSample(outputBuffer, bufferInfo, isVideo = true)
-                            }
-                        }
-                        codec.releaseOutputBuffer(outputBufferIndex, false)
+        override fun onOutputBufferAvailable(codec: MediaCodec, index: Int, info: MediaCodec.BufferInfo) {
+            try {
+                if (info.size > 0 && (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) == 0 && !isPaused.get()) {
+                    codec.getOutputBuffer(index)?.let { buffer ->
+                        circularBuffer.addSample(buffer, info, isVideo = true)
                     }
                 }
+            } catch (t: Throwable) {
+                // Never let a buffering hiccup escalate into a codec error.
+                Log.w(TAG, "Dropped video packet", t)
+            } finally {
+                runCatching { codec.releaseOutputBuffer(index, false) }
             }
+        }
+
+        override fun onOutputFormatChanged(codec: MediaCodec, format: MediaFormat) {
+            circularBuffer.videoFormat = format
+            Log.i(TAG, "Encoder output format: $format")
+        }
+
+        override fun onError(codec: MediaCodec, e: MediaCodec.CodecException) {
+            Log.e(TAG, "Encoder error (recoverable=${e.isRecoverable}, transient=${e.isTransient}): ${e.diagnosticInfo}", e)
         }
     }
 
     fun stop() {
         isRunning.set(false)
         try {
-            drainThread?.join(500)
             virtualDisplayTop?.release()
             virtualDisplayTop = null
-            virtualDisplayBottom?.release()
-            virtualDisplayBottom = null
             inputSurface?.release()
             inputSurface = null
-            mediaCodec?.stop()
-            mediaCodec?.release()
+            mediaCodec?.let { codec ->
+                runCatching { codec.stop() }
+                runCatching { codec.release() }
+            }
             mediaCodec = null
-            Log.i(TAG, "ScreenEncoder stopped successfully")
+            callbackThread?.quitSafely()
+            callbackThread = null
+            Log.i(TAG, "ScreenEncoder stopped")
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping ScreenEncoder", e)
         }

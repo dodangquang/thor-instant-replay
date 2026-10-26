@@ -50,6 +50,11 @@ import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        /** Only ticks while the panel is on screen; see [statusTicker]. */
+        private const val STATUS_TICK_MS = 1500L
+    }
+
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefs: SharedPreferences
     private val handler = Handler(Looper.getMainLooper())
@@ -68,6 +73,19 @@ class MainActivity : AppCompatActivity() {
             if (stickDirection == 0 || isFinishing || isDestroyed) return
             moveStickFocus(stickDirection)
             handler.postDelayed(this, 150L)
+        }
+    }
+
+    /**
+     * Refreshes the on-screen state while the panel is actually visible. It used to
+     * keep firing at 1.5 s forever after the activity was paused, which meant the
+     * app touched its view hierarchy every 1.5 s while the user was in a game.
+     */
+    private val statusTicker = object : Runnable {
+        override fun run() {
+            if (!uiResumed || isFinishing || isDestroyed) return
+            updateServiceUIState()
+            handler.postDelayed(this, STATUS_TICK_MS)
         }
     }
 
@@ -104,7 +122,6 @@ class MainActivity : AppCompatActivity() {
             binding.contentScroll.animate().alpha(1f).translationY(0f).setDuration(200).setStartDelay(35).start()
         }
         binding.btnToggleService.requestFocusFromTouch()
-        startPeriodicStatusCheck()
     }
 
     override fun onResume() {
@@ -114,6 +131,7 @@ class MainActivity : AppCompatActivity() {
         checkAdbPermissionStatus()
         refreshClipsList()
         updateServiceUIState()
+        startPeriodicStatusCheck()
         setupDialog?.refreshStatus()
     }
 
@@ -134,8 +152,8 @@ class MainActivity : AppCompatActivity() {
             else -> binding.chip60s.isChecked = true
         }
 
-        // Resolution preset
-        val resolution = prefs.getString("resolution_preset", "1080p") ?: "1080p"
+        // Resolution preset; the default must match ReplayService's lightweight default.
+        val resolution = prefs.getString("resolution_preset", "720p") ?: "720p"
         if (resolution == "720p") {
             binding.chip720p.isChecked = true
         } else {
@@ -431,12 +449,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startPeriodicStatusCheck() {
-        handler.postDelayed(object : Runnable {
-            override fun run() {
-                updateServiceUIState()
-                handler.postDelayed(this, 1500)
-            }
-        }, 1500)
+        handler.removeCallbacks(statusTicker)
+        handler.postDelayed(statusTicker, STATUS_TICK_MS)
+    }
+
+    private fun stopPeriodicStatusCheck() {
+        handler.removeCallbacks(statusTicker)
     }
 
     private fun refreshClipsList() {
@@ -783,6 +801,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         uiResumed = false
+        stopPeriodicStatusCheck()
         updateStatusPulse()
         confirmArmed = false
         confirmTarget = null

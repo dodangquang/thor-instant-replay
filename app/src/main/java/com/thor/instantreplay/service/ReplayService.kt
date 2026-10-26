@@ -47,6 +47,13 @@ class ReplayService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "thor_shadowplay_channel"
 
+        /**
+         * Trial leases are enforced with backoff. The old 5 s poll re-parsed an
+         * asset, touched the Android Keystore, ran an RSA verify and committed a
+         * preference twelve times a minute while a game was running.
+         */
+        private const val TRIAL_CHECK_INTERVAL_MS = 30_000L
+
         const val ACTION_START = "com.thor.instantreplay.ACTION_START"
         const val ACTION_STOP = "com.thor.instantreplay.ACTION_STOP"
         const val ACTION_SAVE_CLIP = "com.thor.instantreplay.ACTION_SAVE_CLIP"
@@ -62,16 +69,40 @@ class ReplayService : Service() {
         const val EXTRA_RECORD_MIC = "extra_record_mic"
         const val EXTRA_NOISE_FILTER = "extra_noise_filter"
 
+        /** Set only by an explicit user action; this is what may clear [PREF_USER_STOPPED]. */
+        const val EXTRA_FORCE_START = "extra_force_start"
+
         @Volatile
         var isRunning: Boolean = false
         @Volatile
         var isManualRecording: Boolean = false
         @Volatile
         var manualRecordStartTimeMs: Long = 0L
-        @Volatile
-        var bufferSizeBytes: Long = 0L
+
+        /**
+         * Live ring occupancy. Read straight from the buffer instead of being
+         * refreshed by a one-second timer on the main thread.
+         */
+        private var activeBuffer: CircularMediaBuffer? = null
+        val bufferSizeBytes: Long get() = activeBuffer?.totalBytesInBuffer ?: 0L
 
         var activeProjection: MediaProjection? = null
+
+        private const val PREFS = "thor_replay_prefs"
+        private const val PREF_USER_STOPPED = "user_stopped"
+
+        /**
+         * A deliberate stop must stay stopped. Without this latch anything that
+         * re-sends ACTION_START (a watchdog, the boot receiver, a stray launcher
+         * intent) silently brings capture back.
+         */
+        fun isUserStopped(context: Context): Boolean =
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(PREF_USER_STOPPED, false)
+
+        fun setUserStopped(context: Context, stopped: Boolean) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit().putBoolean(PREF_USER_STOPPED, stopped).apply()
+        }
     }
 
     private val executor = Executors.newSingleThreadExecutor()
@@ -85,7 +116,7 @@ class ReplayService : Service() {
         override fun run() {
             if (!TrialAccess.enabled(this@ReplayService)) return
             if (!LicenseAccess.canUse(this@ReplayService)) { stopForAccessExpiry(); return }
-            mainHandler.postDelayed(this, 5000L)
+            mainHandler.postDelayed(this, TRIAL_CHECK_INTERVAL_MS)
         }
     }
 
@@ -168,6 +199,7 @@ class ReplayService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        activeBuffer = circularBuffer
         val filter = IntentFilter().apply {
             addAction(ACTION_SAVE_CLIP)
             addAction(ACTION_STOP)
@@ -188,7 +220,7 @@ class ReplayService : Service() {
             addAction(Intent.ACTION_USER_PRESENT)
         }
         registerReceiver(screenStateReceiver, screenFilter)
-        if (TrialAccess.enabled(this)) mainHandler.postDelayed(trialExpiryCheck, 5000L)
+        if (TrialAccess.enabled(this)) mainHandler.postDelayed(trialExpiryCheck, TRIAL_CHECK_INTERVAL_MS)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -200,28 +232,29 @@ class ReplayService : Service() {
 
         when (action) {
             ACTION_STOP -> {
+                setUserStopped(this, true)
                 stopSelf()
                 return START_NOT_STICKY
             }
             ACTION_SAVE_CLIP -> {
                 saveCurrentReplay()
-                return START_STICKY
+                return START_NOT_STICKY
             }
             ACTION_TOGGLE_MANUAL_RECORD -> {
                 toggleManualRecording()
-                return START_STICKY
+                return START_NOT_STICKY
             }
             ACTION_START_MANUAL_RECORD -> {
                 startManualRecording()
-                return START_STICKY
+                return START_NOT_STICKY
             }
             ACTION_STOP_MANUAL_RECORD -> {
                 stopManualRecording()
-                return START_STICKY
+                return START_NOT_STICKY
             }
             ACTION_UPDATE_AUDIO_VOLUMES -> {
                 reloadAudioVolumes()
-                return START_STICKY
+                return START_NOT_STICKY
             }
             ACTION_START -> {
                 val resultCode = intent?.getIntExtra(EXTRA_RESULT_CODE, 0) ?: 0
@@ -233,6 +266,13 @@ class ReplayService : Service() {
 
                 startForeground(NOTIFICATION_ID, buildNotification(t("Đang ghi đệm $durationSec giây", "Buffering $durationSec seconds")))
 
+                if (isUserStopped(this) && intent?.getBooleanExtra(EXTRA_FORCE_START, false) != true) {
+                    Log.i(TAG, "Ignoring start request: replay was stopped explicitly")
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                setUserStopped(this, false)
+
                 if (resultData != null && resultCode != 0) {
                     val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
                     val projection = projectionManager.getMediaProjection(resultCode, resultData)
@@ -242,12 +282,16 @@ class ReplayService : Service() {
                 } else if (activeProjection != null) {
                     initEncoders(activeProjection!!, durationSec, preferDualScreen, recordMic, enableNoiseFilter)
                 } else {
+                    // A restarted process has no projection token, so capture cannot
+                    // resume. Do not keep a notification that claims it is buffering.
                     Log.w(TAG, "No MediaProjection token available")
+                    stopSelf()
+                    return START_NOT_STICKY
                 }
             }
         }
 
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     private fun initEncoders(
@@ -257,29 +301,42 @@ class ReplayService : Service() {
         recordMic: Boolean = true,
         enableNoiseFilter: Boolean = true
     ) {
-        circularBuffer.clear()
-        circularBuffer.bufferDurationSeconds = durationSec
+        val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-        val prefs = getSharedPreferences("thor_replay_prefs", Context.MODE_PRIVATE)
-        val resolutionPreset = prefs.getString("resolution_preset", "1080p") ?: "1080p"
-        val is720p = resolutionPreset == "720p"
-        val targetWidth = if (is720p) 1280 else 1920
-        val targetHeight = if (is720p) 720 else 1080
-        val bitRate = if (is720p) 8_000_000 else 16_000_000
+        // 720p60 at 6 Mbps is the default. 1080p60/16 Mbps used ~4.5x the encoder
+        // work and ~1 GB/s of extra memory bandwidth that the game also needs.
+        // The frame rate stays at the panel rate: encoding slower than the display
+        // makes SurfaceFlinger block on a full encoder input queue, which is what
+        // pushes the hitch back into the game.
+        val resolutionPreset = prefs.getString("resolution_preset", "720p") ?: "720p"
+        val is1080p = resolutionPreset == "1080p"
+        val targetWidth = if (is1080p) 1920 else 1280
+        val targetHeight = if (is1080p) 1080 else 720
+        val bitRate = if (is1080p) 12_000_000 else 6_000_000
+        val frameRate = prefs.getInt("frame_rate", 60).coerceIn(15, 60)
+
+        circularBuffer.configure(durationSec, bitRate)
 
         val displayConfig = DualScreenHelper.detectDisplays(this, preferDualScreen)
         val metrics = resources.displayMetrics
 
-        screenEncoder = ScreenEncoder(
-            mediaProjection = projection,
-            circularBuffer = circularBuffer,
-            width = targetWidth,
-            height = targetHeight,
-            dpi = metrics.densityDpi,
-            displayConfig = displayConfig,
-            frameRate = 60,
-            bitRate = bitRate
-        ).also { it.start() }
+        try {
+            screenEncoder = ScreenEncoder(
+                mediaProjection = projection,
+                circularBuffer = circularBuffer,
+                width = targetWidth,
+                height = targetHeight,
+                dpi = metrics.densityDpi,
+                displayConfig = displayConfig,
+                frameRate = frameRate,
+                bitRate = bitRate
+            ).also { it.start() }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start the screen encoder", e)
+            Toast.makeText(this, t("Không khởi động được bộ mã hóa màn hình.", "Could not start the screen encoder."), Toast.LENGTH_LONG).show()
+            stopSelf()
+            return
+        }
 
         val gameVol = prefs.getInt("volume_game", 85)
         val micVol = prefs.getInt("volume_mic", 150)
@@ -294,23 +351,8 @@ class ReplayService : Service() {
         ).also { it.start() }
 
         isRunning = true
-        startStatsUpdater()
-        Log.i(TAG, "NVIDIA ShadowPlay started with ${targetWidth}x${targetHeight} @ 60fps ($resolutionPreset, Mic: $recordMic, NoiseFilter: $enableNoiseFilter, GameVol: $gameVol%, MicVol: $micVol%)")
-    }
-
-    private fun startStatsUpdater() {
-        mainHandler.postDelayed(object : Runnable {
-            override fun run() {
-                if (isRunning) {
-                    if (!isPaused) {
-                        bufferSizeBytes = circularBuffer.totalBytesInBuffer
-                        mainHandler.postDelayed(this, 1000)
-                    } else {
-                        mainHandler.postDelayed(this, 10000)
-                    }
-                }
-            }
-        }, 1000)
+        Log.i(TAG, "Replay started at ${targetWidth}x${targetHeight} @ ${frameRate}fps, ${bitRate / 1_000_000} Mbps " +
+            "($resolutionPreset, ${durationSec}s, Mic: $recordMic, NoiseFilter: $enableNoiseFilter, GameVol: $gameVol%, MicVol: $micVol%)")
     }
 
     fun reloadAudioVolumes() {
@@ -345,6 +387,9 @@ class ReplayService : Service() {
         if (ok) {
             isManualRecording = true
             manualRecordStartTimeMs = System.currentTimeMillis()
+            // A fresh IDR now means the recording starts at this instant instead of
+            // waiting for the next scheduled keyframe.
+            screenEncoder?.requestSyncFrame()
             vibrateFeedback()
             Toast.makeText(this, t("Đã bắt đầu quay video", "Video recording started"), Toast.LENGTH_SHORT).show()
             val nm = getSystemService(NotificationManager::class.java)
@@ -504,11 +549,16 @@ class ReplayService : Service() {
         isRunning = false
         screenEncoder?.stop()
         audioEncoder?.stop()
-        if (preserveClipsOnStop) {
-            val projection = mediaProjection ?: activeProjection
-            runCatching { projection?.stop() }
-            if (activeProjection === projection) activeProjection = null
-        }
+
+        // Always end the capture session. Leaving it open kept the system's screen
+        // capture indicator (and the MediaProjection service connection) alive after
+        // replay had been stopped. A restart goes through TransparentPermissionActivity,
+        // which obtains a fresh token.
+        val projection = mediaProjection ?: activeProjection
+        runCatching { projection?.stop() }
+        mediaProjection = null
+        activeProjection = null
+
         circularBuffer.clear()
         executor.shutdown()
         try {
