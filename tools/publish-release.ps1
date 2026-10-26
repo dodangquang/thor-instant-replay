@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Builds, verifies and publishes an Android Replay release, and writes its update feed.
@@ -38,7 +38,9 @@ param(
     [switch]$Trial,
     [string]$Repo = 'dodangquang/thor-instant-replay',
     [string]$Token = $env:GITHUB_TOKEN,
-    [string]$NotesVi = 'Tối ưu hiệu năng capture để giảm khựng khi replay chạy nền.',
+    # Pass Vietnamese copy explicitly; keeping this file ASCII-only means it stays valid
+    # PowerShell 5.1 script text even if an editor drops the byte-order mark.
+    [string]$NotesVi = 'Improved capture performance to reduce stalls while replay buffers.',
     [string]$NotesEn = 'Capture performance work to reduce stalls while replay buffers in the background.',
     [string]$FeedOrigin = 'https://thorqol-license.netlify.app',
     [switch]$SkipSigningCheck
@@ -232,6 +234,9 @@ if (-not $Publish) {
 }
 
 # ---------------------------------------------------------------- publish
+if (-not $PSBoundParameters.ContainsKey('NotesVi')) {
+    Write-Host 'NOTE: -NotesVi was not supplied; the Vietnamese release notes will be English.' -ForegroundColor Yellow
+}
 if (-not $Token) { $Token = $env:GITHUB_TOKEN }
 if (-not $Token) {
     try {
@@ -249,6 +254,17 @@ $headers = @{
 }
 
 Write-Step "Creating release $tag"
+
+$existing = $null
+try {
+    $existing = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$Repo/releases/tags/$tag"
+} catch {
+    # 404 is the expected answer for a tag that has not been published yet.
+}
+if ($existing) {
+    throw "Release $tag already exists ($($existing.html_url)). Delete it or bump the version; re-uploading a different APK under the same tag would break clients that already hashed it."
+}
+
 $body = @{
     tag_name         = $tag
     name             = "Android Replay $versionName"
@@ -262,14 +278,26 @@ $release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$Re
     -Headers $headers -Body $body -ContentType 'application/json; charset=utf-8'
 Write-Note "release id $($release.id)"
 
-Write-Step "Uploading $fileName"
-$upload = & curl.exe -sS -X POST `
-    -H "Authorization: Bearer $Token" `
-    -H 'Content-Type: application/vnd.android.package-archive' `
-    -H 'User-Agent: thorqol-release' `
-    --data-binary "@$staging" `
-    "https://uploads.github.com/repos/$Repo/releases/$($release.id)/assets?name=$fileName" 2>&1 | Out-String
-if ($LASTEXITCODE -ne 0) { throw "Asset upload failed: $upload" }
+function Send-Asset([string]$path, [string]$name, [string]$contentType) {
+    Write-Step "Uploading $name"
+    $result = & curl.exe -sS -X POST `
+        -H "Authorization: Bearer $Token" `
+        -H "Content-Type: $contentType" `
+        -H 'User-Agent: thorqol-release' `
+        --data-binary "@$path" `
+        "https://uploads.github.com/repos/$Repo/releases/$($release.id)/assets?name=$name" 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Asset upload failed for $name`: $result" }
+    if ($result -match '"message"\s*:\s*"(.+?)"') { throw "Asset upload rejected for $name`: $($Matches[1])" }
+}
+
+# Checksum sidecar, matching the SHA256SUMS-Replay-<version>.txt assets of earlier releases.
+$sumsName = "SHA256SUMS-Replay-$versionName.txt"
+$sumsPath = Join-Path (Split-Path -Parent $staging) $sumsName
+[System.IO.File]::WriteAllText($sumsPath, "$sha256  $fileName`n", (New-Object System.Text.UTF8Encoding($false)))
+
+Send-Asset $staging $fileName 'application/vnd.android.package-archive'
+Send-Asset $sumsPath $sumsName 'text/plain; charset=utf-8'
+Write-Note "$fileName  <->  $sumsName"
 
 # The updater resolves the asset through github.com -> *.githubusercontent.com redirects only.
 Write-Step 'Checking the asset is downloadable'
