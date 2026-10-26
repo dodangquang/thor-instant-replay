@@ -92,10 +92,34 @@ function Get-ApkCert([string]$apk) {
 }
 
 # ---------------------------------------------------------------- toolchain
-if (-not $env:JAVA_HOME) { throw 'JAVA_HOME is not set (JDK 17+).' }
-if (-not $env:ANDROID_HOME) { throw 'ANDROID_HOME is not set (Android SDK).' }
+if (-not $env:JAVA_HOME) {
+    Write-Host 'WARNING: JAVA_HOME is not set; Gradle will look for a JDK on PATH.' -ForegroundColor Yellow
+}
 
-$versions = Get-ChildItem (Join-Path $env:ANDROID_HOME 'build-tools') -Directory |
+# Android SDK: environment first, then local.properties (written by Android Studio).
+function Resolve-AndroidSdk {
+    foreach ($candidate in @($env:ANDROID_HOME, $env:ANDROID_SDK_ROOT)) {
+        if ($candidate -and (Test-Path $candidate)) { return $candidate }
+    }
+    $props = Join-Path $repoRoot 'local.properties'
+    if (Test-Path $props) {
+        $match = [regex]::Match([System.IO.File]::ReadAllText($props), 'sdk\.dir=(.+)')
+        if ($match.Success) {
+            # local.properties escapes ':' and '\'
+            $path = $match.Groups[1].Value.Trim().Replace('\:', ':').Replace('\\', '\')
+            if (Test-Path $path) { return $path }
+        }
+    }
+    return $null
+}
+
+$androidSdk = Resolve-AndroidSdk
+if (-not $androidSdk) {
+    throw 'Android SDK not found: set ANDROID_HOME or create local.properties with sdk.dir=...'
+}
+Write-Note "Android SDK $androidSdk"
+
+$versions = Get-ChildItem (Join-Path $androidSdk 'build-tools') -Directory |
     Sort-Object { [version]$_.Name } -Descending
 if (-not $versions) { throw 'No build-tools installed in the Android SDK.' }
 $buildTools = $versions[0].FullName
@@ -247,8 +271,15 @@ $upload = & curl.exe -sS -X POST `
     "https://uploads.github.com/repos/$Repo/releases/$($release.id)/assets?name=$fileName" 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0) { throw "Asset upload failed: $upload" }
 
-# The updater downloads through github.com -> *.githubusercontent.com redirects only.
-Write-Step 'Verifying the published asset'
+# The updater resolves the asset through github.com -> *.githubusercontent.com redirects only.
+Write-Step 'Checking the asset is downloadable'
+try {
+    $head = & curl.exe -sSIL -o NUL -w '%{http_code}' $apkUrl 2>&1 | Out-String
+    Write-Note "release asset responds $($head.Trim())"
+} catch {
+    Write-Note 'could not probe the asset URL yet (GitHub may need a moment)'
+}
+
 try {
     $manifest = Invoke-RestMethod -Uri "$FeedOrigin/updates/v1/$package.json" -TimeoutSec 20
     Write-Note "live feed still advertises $($manifest.versionName) ($($manifest.versionCode))"
@@ -257,11 +288,16 @@ try {
 }
 
 Write-Host ''
-Write-Host 'NEXT STEP (not automatable here): deploy the feed to Netlify.' -ForegroundColor Yellow
-Write-Host "  file    : $feedPath"
-Write-Host "  target  : $FeedOrigin/updates/v1/$package.json"
-Write-Host '  The app fetches the manifest from that origin only; committing the file to GitHub'
-Write-Host '  does not publish it. Until it is deployed, installed clients keep seeing the old version.'
+Write-Host 'REMAINING STEPS (not automatable from this script):' -ForegroundColor Yellow
+Write-Host "  1. commit the feed next to the source:"
+Write-Host "       git add updates/v1/$package.json"
+Write-Host "       git commit -m `"Publish $package $versionName update feed`""
+Write-Host "       git push"
+Write-Host "  2. deploy that same file so it is served at:"
+Write-Host "       $FeedOrigin/updates/v1/$package.json"
+Write-Host '     The app reads the manifest from that origin only; committing it to GitHub does'
+Write-Host '     not publish it. Until it is deployed, installed clients keep seeing the old version.'
+Write-Host "     local file: $feedPath"
 
 } finally {
     Pop-Location
