@@ -252,3 +252,33 @@ thử ép game về 60 Hz để so, rồi thử `frame_rate = 30` để xem prod
 
   Lưu ý: file này **mirror** logic, không import code thật — nếu sửa `CircularMediaBuffer`
   thì phải cập nhật tương ứng.
+
+---
+
+## 10. Kiểm chứng trên máy Thor (2026-10-31)
+
+Cài lên AYN Thor (Android 13, adb `c2b670a0`) và chạy thật. Test này bắt được **3 lỗi làm
+hỏng hẳn đường capture** — đã sửa hết trước khi phát hành:
+
+| # | Lỗi | Triệu chứng | Sửa |
+|---|---|---|---|
+| 1 | `Process.setThreadPriority(thread.threadId, …)` khi `HandlerThread.getThreadId()` còn `-1` | `IllegalArgumentException: Given thread -1 does not exist` → `ScreenEncoder.start()` ném lỗi, service tự dừng, **không ghi được gì**. Lỗi này chỉ xuất hiện trên máy, build không bắt được. | Nâng priority từ bên trong thread qua `onLooperPrepared()` |
+| 2 | Export truyền `ByteBuffer` đã `position(off)` nhưng để `BufferInfo.offset = 0` | `MediaMuxer` định địa chỉ theo `base + offset`, không theo `position()` → đọc nhầm vùng arena. Clip xuất ra **2714 dòng lỗi decode**, 1172 khung đọc được trên 28,7 s | Giữ view ở `position(0)` và đưa `off` vào `BufferInfo.offset` |
+| 3 | `BUFFER_FLAG_CODEC_CONFIG` của AAC (`csd-0`, 2 byte) bị mux như sample | Audio có đúng **1 packet 2 byte** → "Input buffer exhausted before END element found", "Invalid data found" | Lọc `BUFFER_FLAG_CODEC_CONFIG` ngay trong `addSample`, cho cả video lẫn audio |
+
+Kết quả sau khi sửa (đo bằng `ffprobe`/`ffmpeg -f framemd5`):
+
+| Đường | Kết quả |
+|---|---|
+| Buffer 30 s → lưu clip | 1280×720 H.264 + AAC 48 kHz stereo, 25,8 s, ~0,97 Mbps (màn tĩnh), **0 lỗi decode**, PTS tăng đơn điệu (0 vi phạm ở cả 2 track) |
+| Quay tay 12 s | 1280×720 + AAC, 12,06 s, **0 lỗi decode**, `0 KB dropped under back-pressure` |
+| Cấu hình encoder thực tế | `priority=0`, `latency=4`, `frame-rate=60`, `intra-refresh-period=0`, 6 000 000 bps |
+| Ring cấp phát | 30 s → `arena=27 MB, slots=4800`; 60 s → `arena=55 MB, slots=9600` |
+| Đối chứng 2.9.3 | clip 1080p cũ: 59,7 s, **18,9 Mbps**, 0 lỗi decode |
+
+Vì sao `RingSim` không bắt được lỗi #2: nó kiểm tra *cách tôi đọc arena*, mà lỗi nằm ở
+*contract của `MediaMuxer`*, bên ngoài mô hình. Bài học: số học đúng chưa đủ, phải decode thật.
+
+Còn phải đo: `gap_max_ms` p95 / CPU / RAM (mục 6–7) — cần chạy game qua DroidDeck với Thor
+Native FG bật.
+

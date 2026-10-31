@@ -357,6 +357,9 @@ class CircularMediaBuffer {
     fun addSample(byteBuffer: ByteBuffer, bufferInfo: MediaCodec.BufferInfo, isVideo: Boolean) {
         val size = bufferInfo.size
         if (size <= 0) return
+        // Codec configuration (AAC AudioSpecificConfig, H.264 SPS/PPS) is not media
+        // data. Muxing it as a sample produces a 2-byte "frame" that breaks decoding.
+        if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) return
         val offset = bufferInfo.offset
 
         if (isManualRecording) {
@@ -496,9 +499,13 @@ class CircularMediaBuffer {
 
                 val baseTimeUs = pts[(snapHead + firstIndex) % slots]
                 val info = MediaCodec.BufferInfo()
-                // One reusable read view for the whole export: no per-packet allocation.
-                val view = arenaRef.duplicate()
+                // MediaMuxer addresses sample data as buffer base + BufferInfo.offset; it
+                // does not honour ByteBuffer.position(). Every packet lives inside one
+                // shared arena, so the arena offset has to travel in BufferInfo.offset and
+                // this view must stay at position 0.
+                val sampleView = arenaRef.duplicate().apply { position(0) }
                 var straddleScratch = ByteArray(0)
+                var straddled = 0
 
                 for (j in firstIndex until snapCount) {
                     val s = (snapHead + j) % slots
@@ -509,30 +516,33 @@ class CircularMediaBuffer {
                     val size = szs[s]
                     if (size <= 0) continue
                     val off = (starts[s] % cap).toInt()
-                    info.set(0, size, (pts[s] - baseTimeUs).coerceAtLeast(0), flags[s])
+                    val ptsUs = (pts[s] - baseTimeUs).coerceAtLeast(0)
 
                     if (off + size <= cap) {
-                        view.clear()
-                        view.position(off)
-                        view.limit(off + size)
-                        muxer.writeSampleData(track, view, info)
+                        info.set(off, size, ptsUs, flags[s])
+                        muxer.writeSampleData(track, sampleView, info)
                     } else {
                         // Packet wraps the end of the arena: rebuild it contiguously.
                         if (straddleScratch.size < size) straddleScratch = ByteArray(size)
                         val firstChunk = cap - off
-                        view.clear()
-                        view.position(off)
-                        view.limit(cap)
-                        view.get(straddleScratch, 0, firstChunk)
-                        view.position(0)
-                        view.limit(size - firstChunk)
-                        view.get(straddleScratch, firstChunk, size - firstChunk)
+                        val reader = arenaRef.duplicate()
+                        reader.position(off)
+                        reader.limit(cap)
+                        reader.get(straddleScratch, 0, firstChunk)
+                        reader.position(0)
+                        reader.limit(size - firstChunk)
+                        reader.get(straddleScratch, firstChunk, size - firstChunk)
+                        info.set(0, size, ptsUs, flags[s])
                         muxer.writeSampleData(track, ByteBuffer.wrap(straddleScratch, 0, size), info)
+                        straddled++
                     }
                 }
 
                 muxer.stop()
-                Log.i(TAG, "Exported replay clip (${snapCount - firstIndex} packets) to ${outputFile.absolutePath}")
+                Log.i(
+                    TAG,
+                    "Exported replay clip (${snapCount - firstIndex} packets, $straddled rebuilt) to ${outputFile.absolutePath}"
+                )
                 return true
             } finally {
                 runCatching { muxer.release() }

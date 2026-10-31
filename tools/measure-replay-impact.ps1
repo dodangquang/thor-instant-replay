@@ -73,7 +73,8 @@ function Set-ReplayState {
     $duration = $Wanted.TrimEnd('s')
     # TransparentPermissionActivity acquires the MediaProjection token silently
     # (needs the PROJECT_MEDIA app-op) and hands the window length to the service.
-    Invoke-Adb shell am start -n "$Package/.TransparentPermissionActivity" --ei extra_duration_seconds $duration | Out-Null
+    # --el, not --ei: the service reads the window with getLongExtra.
+    Invoke-Adb shell am start -n "$Package/.TransparentPermissionActivity" --el extra_duration_seconds $duration | Out-Null
     Start-Sleep -Seconds 3
 
     $svc = (Invoke-Adb shell dumpsys activity services $Package) -join "`n"

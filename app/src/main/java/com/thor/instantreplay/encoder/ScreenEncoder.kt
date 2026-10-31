@@ -111,9 +111,14 @@ class ScreenEncoder(
             setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR)
         }
 
-        val thread = HandlerThread("ScreenEncoder").apply { start() }
+        // HandlerThread.getThreadId() is still -1 until the thread body runs, so the
+        // priority has to be raised from inside the thread, not by tid from here.
+        val thread = object : HandlerThread("ScreenEncoder") {
+            override fun onLooperPrepared() {
+                Process.setThreadPriority(Process.THREAD_PRIORITY_DISPLAY)
+            }
+        }.apply { start() }
         callbackThread = thread
-        Process.setThreadPriority(thread.threadId, Process.THREAD_PRIORITY_DISPLAY)
 
         try {
             val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
