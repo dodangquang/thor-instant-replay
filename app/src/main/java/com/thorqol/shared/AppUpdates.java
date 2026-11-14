@@ -56,7 +56,7 @@ public final class AppUpdates {
     }finally{conn.disconnect();}}
     static HttpURLConnection connect(URL url,boolean redirects)throws Exception{
         for(int count=0;count<5;count++){
-            String host=url.getHost();if(!"https".equals(url.getProtocol())||url.getUserInfo()!=null||url.getRef()!=null||url.getPort()!=-1||!(redirects?(host.equals("github.com")||host.equals("release-assets.githubusercontent.com")||host.equals("objects.githubusercontent.com")):host.equals("thorqol-license.netlify.app")))throw new IOException("Untrusted update redirect");
+            String host=url.getHost();if(!"https".equals(url.getProtocol())||url.getUserInfo()!=null||url.getRef()!=null||url.getPort()!=-1||!(redirects?(host.equals("github.com")||host.equals("release-assets.githubusercontent.com")||host.equals("objects.githubusercontent.com")):UpdateSpec.trustedManifest(url.toExternalForm())))throw new IOException("Untrusted update redirect");
             HttpURLConnection conn=(HttpURLConnection)url.openConnection();conn.setInstanceFollowRedirects(false);conn.setConnectTimeout(15000);conn.setReadTimeout(20000);conn.setUseCaches(false);conn.setRequestProperty("Accept",redirects?"application/octet-stream":"application/json");conn.setRequestProperty("User-Agent","ThorQOL-Updater/1");conn.setRequestProperty("Cache-Control","no-cache");
             int status=conn.getResponseCode();if(status>=300&&status<400){String location=conn.getHeaderField("Location");conn.disconnect();if(!redirects||location==null)throw new IOException("Update redirect refused");url=new URL(url,location);continue;}
             if(status!=200){conn.disconnect();throw new IOException("Update server HTTP "+status);}return conn;

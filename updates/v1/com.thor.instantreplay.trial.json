@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.thor.instantreplay.trial",
+  "channel": "trial",
+  "versionCode": 18,
+  "versionName": "2.9.5-trial",
+  "minSdk": 29,
+  "bytes": 13373896,
+  "sha256": "2d1a375cbb3babd94928358823b4c8df8fd1f13522dd327b7da3cfcfd79fad86",
+  "apkUrl": "https://github.com/dodangquang/thor-instant-replay/releases/download/thorqol-replay-v2.9.5/Android-Replay-2.9.5-trial.apk",
+  "notesVi": "Kênh cập nhật chuyển sang GitHub nên kiểm tra cập nhật không còn dùng Netlify. App vẫn xác minh package, phiên bản, SHA-256 và chữ ký APK trước khi cài. Phần ghi hình (buffer packet đã mã hoá, 720p60 6 Mbps) giữ nguyên như 2.9.4.",
+  "notesEn": "The update channel moved to GitHub, so checking for updates no longer uses Netlify. The app still verifies package, version, SHA-256 and the APK signing certificate before installing. Recording is unchanged from 2.9.4."
+}

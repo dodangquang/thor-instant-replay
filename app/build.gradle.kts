@@ -14,8 +14,8 @@ android {
         buildConfigField("boolean", "THORQOL_TRIAL", thorqolTrial.toString())
         minSdk = 29
         targetSdk = 34
-        versionCode = providers.gradleProperty("thorqolVersionCode").orNull?.toInt() ?: 16
-        versionName = (providers.gradleProperty("thorqolVersionName").orNull ?: "2.9.4") + if (thorqolTrial) "-trial" else ""
+        versionCode = providers.gradleProperty("thorqolVersionCode").orNull?.toInt() ?: 18
+        versionName = (providers.gradleProperty("thorqolVersionName").orNull ?: "2.9.5") + if (thorqolTrial) "-trial" else ""
         testInstrumentationRunner = "com.thor.instantreplay.ReplayUiInstrumentation"
     }
 

@@ -10,6 +10,12 @@ public final class UpdateSpecTest {
         for(String pkg:new String[]{"vn.vhbridge","vn.vhbridge.trial","com.khogame.thor","com.khogame.thor.trial","com.thor.instantreplay","com.thor.instantreplay.trial"}){
             String version=(pkg.startsWith("com.thor.instantreplay")?"2.9.1":"1.2.1")+(pkg.endsWith(".trial")?"-trial":"");String url=BASE+UpdateSpec.filename(pkg,version);
             UpdateSpec valid=spec(pkg,pkg,100,version,29,1000,HASH,url);if(!valid.packageName.equals(pkg)||!UpdateSpec.manifest(pkg).endsWith("/"+pkg+".json"))throw new AssertionError();checks++;
+            if(!UpdateSpec.manifest(pkg).startsWith(UpdateSpec.FEED_ORIGIN+"/updates/v1/"))throw new AssertionError("Manifest must come from the GitHub feed origin");
+            if(!UpdateSpec.trustedManifest(UpdateSpec.manifest(pkg)))throw new AssertionError("Own manifest must be trusted");
+            if(UpdateSpec.trustedManifest(UpdateSpec.manifest(pkg)+"?x=1"))throw new AssertionError("Manifest with a query must be refused");
+            if(UpdateSpec.trustedManifest(UpdateSpec.manifest(pkg)+"#frag"))throw new AssertionError("Manifest with a fragment must be refused");
+            if(UpdateSpec.trustedManifest(UpdateSpec.ORIGIN+"/updates/v1/"+pkg+".json"))throw new AssertionError("Netlify manifest must no longer be trusted");
+            checks++;
             reject(()->spec(pkg,pkg+".wrong",100,version,29,1000,HASH,url));
             reject(()->spec(pkg,pkg,0,version,29,1000,HASH,url));reject(()->spec(pkg,pkg,2100000001L,version,29,1000,HASH,url));
             reject(()->spec(pkg,pkg,100,version,25,1000,HASH,url));reject(()->spec(pkg,pkg,100,version,29,UpdateSpec.MAX_APK+1,HASH,url));
