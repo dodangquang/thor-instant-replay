@@ -1,5 +1,6 @@
 package com.thor.instantreplay.service
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -20,6 +21,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
+import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.thor.instantreplay.MainActivity
@@ -389,6 +391,36 @@ class ReplayService : Service() {
         isRunning = true
         Log.i(TAG, "Replay started at ${targetWidth}x${targetHeight} @ ${frameRate}fps, ${bitRate / 1_000_000} Mbps " +
             "($resolutionPreset, ${durationSec}s, Mic: $recordMic, NoiseFilter: $enableNoiseFilter, GameVol: $gameVol%, MicVol: $micVol%)")
+
+        // HOME-hold and L3+R3 are delivered by the accessibility service. Uninstalling
+        // or reinstalling the app removes it from the enabled list and Android never
+        // restores it, so both triggers would fail silently with no feedback at all.
+        val wantsKeyTriggers = prefs.getBoolean("home_hold", true) || prefs.getBoolean("instant_l3_r3", true)
+        if (wantsKeyTriggers && !isKeyTriggerServiceEnabled()) {
+            Log.w(TAG, "Accessibility service disabled: HOME-hold and L3+R3 cannot save clips")
+            Toast.makeText(
+                this,
+                t(
+                    "Giữ HOME và L3+R3 cần bật Trợ năng cho Android Replay. Vào Cài đặt > Trợ năng để bật lại.",
+                    "Holding HOME and L3+R3 need the Android Replay accessibility service. Enable it in Settings > Accessibility."
+                ),
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    /** True when the user has ThorKeyTriggerService switched on in Accessibility. */
+    private fun isKeyTriggerServiceEnabled(): Boolean = try {
+        val manager = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+        manager?.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)?.any { info ->
+            val serviceInfo = info.resolveInfo?.serviceInfo
+            serviceInfo != null &&
+                serviceInfo.packageName == packageName &&
+                serviceInfo.name.endsWith("ThorKeyTriggerService")
+        } ?: false
+    } catch (e: Exception) {
+        Log.w(TAG, "Could not query accessibility services", e)
+        false
     }
 
     fun reloadAudioVolumes() {

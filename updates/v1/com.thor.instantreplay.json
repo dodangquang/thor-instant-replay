@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "packageName": "com.thor.instantreplay",
   "channel": "full",
-  "versionCode": 19,
-  "versionName": "2.9.6",
+  "versionCode": 20,
+  "versionName": "2.9.7",
   "minSdk": 29,
-  "bytes": 13375260,
-  "sha256": "17ac9ad3851199c9d45f74c47eaa308b34eafb5540c5c12846ebfae60f6d133d",
-  "apkUrl": "https://github.com/dodangquang/thor-instant-replay/releases/download/thorqol-replay-v2.9.6/Android-Replay-2.9.6.apk",
-  "notesVi": "Giảm vỡ khối ở HUD nhỏ khi chạy (ví dụ vòng stamina): bỏ gợi ý low-latency để encoder giữ lookahead. Sửa lỗi mở replay hai lần để lại encoder và VirtualDisplay cũ chạy song song, gây gấp đôi tải ghi hình. Báo rõ khi cửa sổ replay bị cắt do giới hạn bộ nhớ thay vì lặng lẽ lưu clip ngắn hơn.",
-  "notesEn": "Less blocking on small HUD detail while running (for example the stamina wheel): the encoder no longer gets the low-latency hint and keeps its lookahead. Fixed a double-start that left the previous encoder and VirtualDisplay running in parallel, doubling capture load. Reports when the replay window is clipped by the memory budget instead of silently saving shorter clips."
+  "bytes": 13376216,
+  "sha256": "b006fa96d5fb766ecd5597143b21fc8086dc717ec86893c79b9a6b856091e42a",
+  "apkUrl": "https://github.com/dodangquang/thor-instant-replay/releases/download/thorqol-replay-v2.9.7/Android-Replay-2.9.7.apk",
+  "notesVi": "Cảnh báo khi dịch vụ Trợ năng đang tắt: giữ HOME 3 giây và L3+R3 chỉ hoạt động qua dịch vụ đó; gỡ hoặc cài lại app sẽ làm Android tắt nó và hai cách lưu này hỏng âm thầm. Vào Cài đặt > Trợ năng > Android Replay để bật lại.",
+  "notesEn": "Warns when the accessibility service is disabled: holding HOME for 3 seconds and L3+R3 only work through it, and uninstalling or reinstalling makes Android disable it while both shortcuts fail silently. Enable Android Replay under Settings > Accessibility."
 }

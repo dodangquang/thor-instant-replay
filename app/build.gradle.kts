@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     id("com.android.application")
 }
 
@@ -14,8 +14,8 @@ android {
         buildConfigField("boolean", "THORQOL_TRIAL", thorqolTrial.toString())
         minSdk = 29
         targetSdk = 34
-        versionCode = providers.gradleProperty("thorqolVersionCode").orNull?.toInt() ?: 19
-        versionName = (providers.gradleProperty("thorqolVersionName").orNull ?: "2.9.6") + if (thorqolTrial) "-trial" else ""
+        versionCode = providers.gradleProperty("thorqolVersionCode").orNull?.toInt() ?: 20
+        versionName = (providers.gradleProperty("thorqolVersionName").orNull ?: "2.9.7") + if (thorqolTrial) "-trial" else ""
         testInstrumentationRunner = "com.thor.instantreplay.ReplayUiInstrumentation"
     }
 
