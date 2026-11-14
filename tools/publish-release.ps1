@@ -316,16 +316,19 @@ try {
 }
 
 Write-Host ''
-Write-Host 'REMAINING STEPS (not automatable from this script):' -ForegroundColor Yellow
-Write-Host "  1. commit the feed next to the source:"
-Write-Host "       git add updates/v1/$package.json"
-Write-Host "       git commit -m `"Publish $package $versionName update feed`""
-Write-Host "       git push"
-Write-Host "  2. deploy that same file so it is served at:"
-Write-Host "       $FeedOrigin/updates/v1/$package.json"
-Write-Host '     The app reads the manifest from that origin only; committing it to GitHub does'
-Write-Host '     not publish it. Until it is deployed, installed clients keep seeing the old version.'
+Write-Host 'NEXT STEPS: the app reads the manifest from Netlify, not from this repository.' -ForegroundColor Yellow
+Write-Host "  1. copy this feed into the license server repo:"
+Write-Host "       <thorqol-license-server>\public\updates\v1\$package.json"
 Write-Host "     local file: $feedPath"
+Write-Host '  2. run the deploy validator from that repo before pushing:'
+Write-Host '       node tools/check-public.js'
+Write-Host '  3. commit and push main of thorqol-license-server. That push is what deploys'
+Write-Host '     public/ to Netlify and it consumes a build credit, so only push when the'
+Write-Host '     release is meant to go live.'
+Write-Host '  4. confirm the live manifest before announcing:'
+Write-Host "       Invoke-RestMethod $FeedOrigin/updates/v1/$package.json"
+Write-Host '     It must show the new versionCode. Installed clients keep seeing the old'
+Write-Host '     version until that file is served.'
 
 } finally {
     Pop-Location
