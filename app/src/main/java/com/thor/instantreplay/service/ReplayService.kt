@@ -276,6 +276,8 @@ class ReplayService : Service() {
                 if (resultData != null && resultCode != 0) {
                     val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
                     val projection = projectionManager.getMediaProjection(resultCode, resultData)
+                    val previous = mediaProjection
+                    if (previous != null && previous !== projection) runCatching { previous.stop() }
                     mediaProjection = projection
                     activeProjection = projection
                     initEncoders(projection, durationSec, preferDualScreen, recordMic, enableNoiseFilter)
@@ -301,6 +303,21 @@ class ReplayService : Service() {
         recordMic: Boolean = true,
         enableNoiseFilter: Boolean = true
     ) {
+        // ACTION_START can arrive more than once: the permission activity recreated,
+        // the projection re-granted, or the service restarted with the same intent.
+        // Without tearing the old pipeline down first, the previous MediaCodec and
+        // VirtualDisplay keep mirroring and encoding in parallel, which doubles the
+        // capture load on the device for no benefit.
+        screenEncoder?.stop()
+        screenEncoder = null
+        audioEncoder?.stop()
+        audioEncoder = null
+        if (isManualRecording) {
+            circularBuffer.stopManualRecording()
+            isManualRecording = false
+            manualRecordStartTimeMs = 0L
+        }
+
         val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
         // 720p60 at 6 Mbps is the default. 1080p60/16 Mbps used ~4.5x the encoder
@@ -316,6 +333,25 @@ class ReplayService : Service() {
         val frameRate = prefs.getInt("frame_rate", 60).coerceIn(15, 60)
 
         circularBuffer.configure(durationSec, bitRate)
+
+        // The byte cap can hold less history than the selected window at a heavy
+        // preset. Say so instead of silently saving shorter clips than promised.
+        val effectiveWindow = circularBuffer.effectiveWindowSeconds
+        if (effectiveWindow < durationSec) {
+            Log.w(
+                TAG,
+                "Replay window clipped: requested ${durationSec}s, buffer holds ${effectiveWindow}s " +
+                    "at ${targetWidth}x${targetHeight} / ${bitRate / 1_000_000} Mbps"
+            )
+            Toast.makeText(
+                this,
+                t(
+                    "Ở mức ${targetWidth}x${targetHeight}, bộ đệm chỉ giữ được khoảng $effectiveWindow giây (bạn chọn $durationSec giây). Chọn 720p hoặc giảm cửa sổ nếu cần đủ thời lượng.",
+                    "At ${targetWidth}x$targetHeight the buffer only holds about $effectiveWindow seconds of the $durationSec seconds you selected. Choose 720p or a shorter window for full length."
+                ),
+                Toast.LENGTH_LONG
+            ).show()
+        }
 
         val displayConfig = DualScreenHelper.detectDisplays(this, preferDualScreen)
         val metrics = resources.displayMetrics

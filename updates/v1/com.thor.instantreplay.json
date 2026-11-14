@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "packageName": "com.thor.instantreplay",
   "channel": "full",
-  "versionCode": 18,
-  "versionName": "2.9.5",
+  "versionCode": 19,
+  "versionName": "2.9.6",
   "minSdk": 29,
-  "bytes": 13373868,
-  "sha256": "da4557214a4e8026d0a4ff7dfd4157b9f47140b39555bd462f4b949ae423b678",
-  "apkUrl": "https://github.com/dodangquang/thor-instant-replay/releases/download/thorqol-replay-v2.9.5/Android-Replay-2.9.5.apk",
-  "notesVi": "Kênh cập nhật chuyển sang GitHub nên kiểm tra cập nhật không còn dùng Netlify. App vẫn xác minh package, phiên bản, SHA-256 và chữ ký APK trước khi cài. Phần ghi hình (buffer packet đã mã hoá, 720p60 6 Mbps) giữ nguyên như 2.9.4.",
-  "notesEn": "The update channel moved to GitHub, so checking for updates no longer uses Netlify. The app still verifies package, version, SHA-256 and the APK signing certificate before installing. Recording is unchanged from 2.9.4."
+  "bytes": 13375260,
+  "sha256": "17ac9ad3851199c9d45f74c47eaa308b34eafb5540c5c12846ebfae60f6d133d",
+  "apkUrl": "https://github.com/dodangquang/thor-instant-replay/releases/download/thorqol-replay-v2.9.6/Android-Replay-2.9.6.apk",
+  "notesVi": "Giảm vỡ khối ở HUD nhỏ khi chạy (ví dụ vòng stamina): bỏ gợi ý low-latency để encoder giữ lookahead. Sửa lỗi mở replay hai lần để lại encoder và VirtualDisplay cũ chạy song song, gây gấp đôi tải ghi hình. Báo rõ khi cửa sổ replay bị cắt do giới hạn bộ nhớ thay vì lặng lẽ lưu clip ngắn hơn.",
+  "notesEn": "Less blocking on small HUD detail while running (for example the stamina wheel): the encoder no longer gets the low-latency hint and keeps its lookahead. Fixed a double-start that left the previous encoder and VirtualDisplay running in parallel, doubling capture load. Reports when the replay window is clipped by the memory budget instead of silently saving shorter clips."
 }

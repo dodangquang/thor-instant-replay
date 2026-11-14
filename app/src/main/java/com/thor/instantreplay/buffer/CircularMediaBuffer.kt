@@ -95,6 +95,16 @@ class CircularMediaBuffer {
     val capacityBytes: Int get() = arena.capacity()
 
     /**
+     * Window the ring can actually hold. Equals [bufferDurationSeconds] unless the byte
+     * cap clipped it, in which case the oldest packets are evicted by capacity before
+     * the requested duration elapses and the user would otherwise be promised more
+     * history than the buffer keeps.
+     */
+    @Volatile
+    var effectiveWindowSeconds: Long = 60L
+        private set
+
+    /**
      * Sizes the ring for [durationSeconds] of [videoBitRate]. Safe to call again on
      * restart: it drops everything buffered.
      *
@@ -104,11 +114,20 @@ class CircularMediaBuffer {
      */
     fun configure(durationSeconds: Long, videoBitRate: Int) {
         stopManualRecording()
-        val wanted = (durationSeconds.coerceAtLeast(1L) * videoBitRate.toLong() / 8L * ARENA_HEADROOM).toLong()
+        val seconds = durationSeconds.coerceAtLeast(1L)
+        val bytesPerSecond = videoBitRate / 8.0 * ARENA_HEADROOM
+        val wanted = (seconds * bytesPerSecond).toLong()
         val arenaBytes = wanted.coerceIn(MIN_ARENA_BYTES, MAX_ARENA_BYTES).toInt()
-        val slots = (durationSeconds.coerceAtLeast(1L) * SLOTS_PER_SECOND).toInt().coerceAtLeast(512)
+        // Capacity, not the requested duration, decides how much history survives.
+        val effectiveSeconds = if (wanted <= arenaBytes) {
+            seconds
+        } else {
+            (arenaBytes / bytesPerSecond).toLong().coerceIn(1L, seconds)
+        }
+        val slots = (seconds * SLOTS_PER_SECOND).toInt().coerceAtLeast(512)
         synchronized(lock) {
-            bufferDurationSeconds = durationSeconds
+            bufferDurationSeconds = seconds
+            effectiveWindowSeconds = effectiveSeconds
             if (arena.capacity() < arenaBytes) {
                 arena = ByteBuffer.allocateDirect(arenaBytes)
                 writeView = arena.duplicate()
@@ -129,9 +148,17 @@ class CircularMediaBuffer {
         }
         Log.i(
             TAG,
-            "Replay ring ready for ${durationSeconds}s @ ${videoBitRate / 1_000_000} Mbps: " +
-                "arena=${arena.capacity() / (1024 * 1024)} MB, slots=$slotCount"
+            "Replay ring ready for ${effectiveSeconds}s (requested ${seconds}s) @ " +
+                "${videoBitRate / 1_000_000} Mbps: arena=${arena.capacity() / (1024 * 1024)} MB, slots=$slotCount"
         )
+        if (effectiveSeconds < seconds) {
+            Log.w(
+                TAG,
+                "Byte cap ${MAX_ARENA_BYTES / (1024 * 1024)} MB only holds ${effectiveSeconds}s at " +
+                    "${videoBitRate / 1_000_000} Mbps (requested ${seconds}s). The oldest packets are " +
+                    "evicted early, so saved clips will be shorter than the selected window."
+            )
+        }
     }
 
     fun clear() {

@@ -42,7 +42,6 @@ class ScreenEncoder(
          * MediaFormat keys newer than minSdk 29; referenced as literals so the app
          * keeps running on API 29 instead of failing on a missing static field.
          */
-        private const val KEY_LOW_LATENCY = "low-latency"
         private const val KEY_MAX_B_FRAMES = "max-bframes"
     }
 
@@ -104,8 +103,10 @@ class ScreenEncoder(
             setInteger(MediaFormat.KEY_PRIORITY, 0)
             setInteger(MediaFormat.KEY_OPERATING_RATE, frameRate)
             setInteger(MediaFormat.KEY_CAPTURE_RATE, frameRate)
-            // Emit each frame as it is encoded instead of batching a GOP.
-            setInteger(KEY_LOW_LATENCY, 1)
+            // Deliberately NOT "low-latency". That flag makes the encoder skip its
+            // lookahead to shave a few tens of milliseconds, which costs compression
+            // efficiency on small, sharp, moving detail such as a game HUD gauge. A
+            // 30-120 s replay buffer never needs the latency back.
             // No B-frames: no reordering delay and no extra reference frames held.
             setInteger(KEY_MAX_B_FRAMES, 0)
             setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR)
